@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+.env
+.venv/
+venv/
+
+*.sqlite3
+*.sqlite3-*
+*.db
+*.log
+
+backtest_report_*.json
+demo_stock_expert_friend.sqlite3
