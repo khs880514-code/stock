@@ -17,15 +17,16 @@ class TradeJournal:
             cursor = conn.execute(
                 """
                 INSERT INTO trades (
-                  timestamp, ticker, action, quantity, avg_price, reason_text,
+                  timestamp, ticker, account_key, action, quantity, avg_price, reason_text,
                   fomo_score, friend_influence_score, price_at_entry,
                   price_1d, price_1w, price_1m, outcome_note, mistake_type
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     entry.timestamp.isoformat(),
                     entry.ticker,
+                    entry.account_key,
                     entry.action.upper(),
                     entry.quantity,
                     entry.avg_price,

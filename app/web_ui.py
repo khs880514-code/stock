@@ -84,6 +84,7 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
         current_price = _float(form, "current_price") or avg_price
         holding = Holding(
             ticker=form.get("ticker", ""),
+            account_key=form.get("account_key", "GENERAL_TOSS"),
             market=form.get("market", "US"),
             quantity=_float(form, "quantity"),
             avg_price=avg_price,
@@ -100,6 +101,7 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
         entry = TradeEntry(
             timestamp=datetime.now(tz=KST),
             ticker=form.get("ticker", ""),
+            account_key=form.get("account_key", "GENERAL_TOSS"),
             action=form.get("trade_action", "BUY").upper(),
             quantity=_float(form, "quantity"),
             avg_price=_float(form, "avg_price"),
@@ -450,6 +452,7 @@ def _cash_form(cash: int) -> str:
 def _holding_form() -> str:
     return """<form method="post" action="/holding">
   <label>종목<input name="ticker" value="AAPL" required></label>
+  <label>계좌<select name="account_key"><option value="GENERAL_TOSS">일반 - 토스증권</option><option value="ISA_KIWOOM">ISA - 키움증권</option></select></label>
   <div class="row"><label>시장<select name="market"><option>US</option><option>KR</option></select></label><label>통화<select name="currency"><option>USD</option><option>KRW</option></select></label></div>
   <div class="row"><label>수량<input name="quantity" type="number" step="0.0001" required></label><label>평단<input name="avg_price" type="number" step="0.0001" required></label></div>
   <div class="row"><label>현재가<input name="current_price" type="number" step="0.0001"></label><label>자산유형<input name="asset_type" value="EQUITY"></label></div>
@@ -605,6 +608,7 @@ def _research_form() -> str:
 def _trade_form() -> str:
     return """<form method="post" action="/trade">
   <label>종목<input name="ticker" value="AAPL" required></label>
+  <label>계좌<select name="account_key"><option value="GENERAL_TOSS">일반 - 토스증권</option><option value="ISA_KIWOOM">ISA - 키움증권</option></select></label>
   <div class="row"><label>행동<select name="trade_action"><option>BUY</option><option>SELL</option><option>HOLD</option></select></label><label>수량<input name="quantity" type="number" step="0.0001" required></label></div>
   <div class="row"><label>평균가<input name="avg_price" type="number" step="0.0001" required></label><label>진입가<input name="price_at_entry" type="number" step="0.0001"></label></div>
   <div class="row"><label>FOMO<input name="fomo" type="number" min="0" max="10" value="3"></label><label>외부 영향<input name="influence" type="number" min="0" max="10" value="1"></label></div>
@@ -861,10 +865,10 @@ def _holdings_table(holdings) -> str:
     if not holdings:
         return '<p class="empty">보유종목 없음</p>'
     rows = "".join(
-        f"<tr><td>{_e(h.ticker)}</td><td>{h.quantity:g}</td><td>{h.avg_price:g} {_e(h.currency)}</td><td>{h.current_price:g} {_e(h.currency)}</td><td>{_e(h.sector_tag)}</td></tr>"
+        f"<tr><td>{_e(h.ticker)}</td><td>{_e(h.account_key)}</td><td>{h.quantity:g}</td><td>{h.avg_price:g} {_e(h.currency)}</td><td>{h.current_price:g} {_e(h.currency)}</td><td>{_e(h.sector_tag)}</td></tr>"
         for h in holdings
     )
-    return f"<table><thead><tr><th>종목</th><th>수량</th><th>평단</th><th>현재가</th><th>태그</th></tr></thead><tbody>{rows}</tbody></table>"
+    return f"<table><thead><tr><th>종목</th><th>계좌</th><th>수량</th><th>평단</th><th>현재가</th><th>태그</th></tr></thead><tbody>{rows}</tbody></table>"
 
 
 def _watchlist_table(items) -> str:
@@ -881,10 +885,10 @@ def _trades_table(trades) -> str:
     if not trades:
         return '<p class="empty">매매 일지 없음</p>'
     rows = "".join(
-        f"<tr><td>{_e(t.timestamp.strftime('%Y-%m-%d %H:%M'))}</td><td>{_e(t.ticker)}</td><td>{_e(t.action)}</td><td>{t.quantity:g}</td><td>{t.avg_price:g}</td><td>{t.fomo_score}/10</td><td>{_e(t.reason_text)}</td></tr>"
+        f"<tr><td>{_e(t.timestamp.strftime('%Y-%m-%d %H:%M'))}</td><td>{_e(t.ticker)}</td><td>{_e(t.account_key)}</td><td>{_e(t.action)}</td><td>{t.quantity:g}</td><td>{t.avg_price:g}</td><td>{t.fomo_score}/10</td><td>{_e(t.reason_text)}</td></tr>"
         for t in trades[:20]
     )
-    return f"<table><thead><tr><th>시각</th><th>종목</th><th>행동</th><th>수량</th><th>가격</th><th>FOMO</th><th>사유</th></tr></thead><tbody>{rows}</tbody></table>"
+    return f"<table><thead><tr><th>시각</th><th>종목</th><th>계좌</th><th>행동</th><th>수량</th><th>가격</th><th>FOMO</th><th>사유</th></tr></thead><tbody>{rows}</tbody></table>"
 
 
 def _metric(label: str, value: str) -> str:
@@ -1020,6 +1024,7 @@ def _refresh_holding_current_prices(config: AppConfig) -> None:
         portfolio_store.save_holding(
             Holding(
                 ticker=holding.ticker,
+                account_key=holding.account_key,
                 market=holding.market,
                 quantity=holding.quantity,
                 avg_price=holding.avg_price,

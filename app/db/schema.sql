@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS holdings (
   ticker TEXT PRIMARY KEY,
+  account_key TEXT NOT NULL DEFAULT 'GENERAL_TOSS',
   market TEXT NOT NULL,
   quantity REAL NOT NULL,
   avg_price REAL NOT NULL,
@@ -50,6 +51,7 @@ CREATE TABLE IF NOT EXISTS trades (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   timestamp TEXT NOT NULL,
   ticker TEXT NOT NULL,
+  account_key TEXT NOT NULL DEFAULT 'GENERAL_TOSS',
   action TEXT NOT NULL,
   quantity REAL NOT NULL,
   avg_price REAL NOT NULL,
@@ -115,6 +117,7 @@ CREATE TABLE IF NOT EXISTS holdings_snapshot (
   taken_at TEXT NOT NULL,
   trade_id INTEGER,
   ticker TEXT NOT NULL,
+  account_key TEXT NOT NULL DEFAULT 'GENERAL_TOSS',
   shares REAL NOT NULL,
   avg_cost_usd REAL NOT NULL,
   fx_usdkrw REAL NOT NULL

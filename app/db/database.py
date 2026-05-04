@@ -26,6 +26,9 @@ def init_db(db_path: Path | str) -> None:
         _ensure_column(conn, "watchlist", "do_not_watch_until", "TEXT")
         _ensure_column(conn, "watchlist", "blackout_reason", "TEXT")
         _ensure_column(conn, "watchlist", "blackout_set_at", "TEXT")
+        _ensure_column(conn, "holdings", "account_key", "TEXT NOT NULL DEFAULT 'GENERAL_TOSS'")
+        _ensure_column(conn, "trades", "account_key", "TEXT NOT NULL DEFAULT 'GENERAL_TOSS'")
+        _ensure_column(conn, "holdings_snapshot", "account_key", "TEXT NOT NULL DEFAULT 'GENERAL_TOSS'")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:

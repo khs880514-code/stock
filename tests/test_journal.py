@@ -10,6 +10,7 @@ def test_trade_journal_saves_trade_and_alert(tmp_path, now):
         TradeEntry(
             timestamp=now - timedelta(days=7),
             ticker="AMD",
+            account_key="ISA_KIWOOM",
             action="BUY",
             quantity=1,
             avg_price=170,
@@ -22,6 +23,7 @@ def test_trade_journal_saves_trade_and_alert(tmp_path, now):
     assert trade_id > 0
     reviews = journal.one_week_reviews(now)
     assert len(reviews) == 1
+    assert reviews[0].account_key == "ISA_KIWOOM"
 
     alert_id = journal.log_alert(
         "test",
@@ -29,4 +31,3 @@ def test_trade_journal_saves_trade_and_alert(tmp_path, now):
         AlertDecision(ticker="AMD", action=Action.NO_TRADE, reason=["테스트"]),
     )
     assert alert_id > 0
-

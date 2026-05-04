@@ -56,7 +56,7 @@ mock seed 없이 실제 입력 데이터로 운영하려면 먼저 현금과 보
 
 ```bash
 py -3 -m app.main --set-cash 12000000
-py -3 -m app.main --add-holding --ticker AAPL --market US --quantity 2 --avg-price 150 --current-price 180 --currency USD --sector-tag BIG_TECH
+py -3 -m app.main --add-holding --ticker AAPL --account-key GENERAL_TOSS --market US --quantity 2 --avg-price 150 --current-price 180 --currency USD --sector-tag BIG_TECH
 py -3 -m app.main --list-portfolio
 ```
 
@@ -69,7 +69,7 @@ py -3 -m app.main --snapshot-holdings
 매매 일지는 수동으로 기록합니다.
 
 ```bash
-py -3 -m app.main --record-trade --ticker AAPL --trade-action BUY --quantity 2 --avg-price 180 --reason "분할 매수 기록" --fomo 3 --influence 1
+py -3 -m app.main --record-trade --ticker AAPL --account-key GENERAL_TOSS --trade-action BUY --quantity 2 --avg-price 180 --reason "분할 매수 기록" --fomo 3 --influence 1
 py -3 -m app.main --list-trades
 ```
 
@@ -129,7 +129,7 @@ set SEF_SEC_USER_AGENT=StockExpertFriend/1.0 your-email@example.com
 - `GENERAL_TOSS`: 일반 매매/해외주식, 토스증권
 - `ISA_KIWOOM`: ISA 계좌, 키움증권
 
-매수 검토 폼에서 검토 계좌를 선택하면 결과 메시지에 계좌 라우팅이 함께 남습니다. 현재는 라우팅 메모 단계이며, 실제 토스/키움 API 연결과 같은 종목을 계좌별로 나눠 보유하는 정밀 포지션 분리는 다음 단계에서 확장합니다.
+매수 검토 폼에서 검토 계좌를 선택하면 결과 메시지에 계좌 라우팅이 함께 남습니다. 보유종목과 매매일지에도 `account_key`가 저장됩니다. 현재 `holdings`의 기본 키는 아직 `ticker`라서 같은 종목을 Toss와 Kiwoom ISA에 동시에 나눠 보유하는 정밀 포지션 분리는 다음 단계에서 확장합니다.
 
 ## post_drop_chase 룰
 

@@ -66,6 +66,7 @@ def main() -> None:
     parser.add_argument("--currency", default="USD", choices=["USD", "KRW"])
     parser.add_argument("--asset-type", default="EQUITY")
     parser.add_argument("--sector-tag", default="UNKNOWN")
+    parser.add_argument("--account-key", default="GENERAL_TOSS")
     parser.add_argument("--record-trade", action="store_true", help="Record one manual journal entry.")
     parser.add_argument("--list-trades", action="store_true", help="List recent journal entries.")
     parser.add_argument("--trade-action", default="BUY")
@@ -333,6 +334,7 @@ def run_add_holding(config: AppConfig, args: argparse.Namespace) -> str:
     store.save_holding(
         Holding(
             ticker=args.ticker,
+            account_key=args.account_key,
             market=args.market,
             quantity=args.quantity,
             avg_price=args.avg_price,
@@ -363,7 +365,7 @@ def run_list_portfolio(config: AppConfig) -> str:
         lines.append("- 없음")
     for holding in snapshot.holdings:
         lines.append(
-            f"- {holding.ticker} {holding.quantity:g}주 "
+            f"- {holding.ticker} [{holding.account_key}] {holding.quantity:g}주 "
             f"평단 {holding.avg_price:g}{holding.currency}, 현재 {holding.current_price:g}{holding.currency}, "
             f"{holding.sector_tag}"
         )
@@ -385,6 +387,7 @@ def run_record_trade(config: AppConfig, args: argparse.Namespace) -> str:
         TradeEntry(
             timestamp=timestamp,
             ticker=args.ticker,
+            account_key=args.account_key,
             action=args.trade_action.upper(),
             quantity=args.quantity,
             avg_price=args.avg_price,
@@ -411,7 +414,7 @@ def run_list_trades(config: AppConfig) -> str:
         lines.append(
             f"- #{trade.id or '-'} {trade.timestamp.isoformat()} {trade.ticker} "
             f"{trade.action.upper()} {trade.quantity:g}주 @ {trade.avg_price:g}, "
-            f"FOMO {trade.fomo_score}/10, 사유: {trade.reason_text}"
+            f"account={trade.account_key}, FOMO {trade.fomo_score}/10, 사유: {trade.reason_text}"
         )
     return "\n".join(lines)
 

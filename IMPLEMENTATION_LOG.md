@@ -665,3 +665,51 @@
 - Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 76 tests.
 - Seeded the current local DB with Samsung Electronics and SK Hynix estimated sensitivity rows.
 - Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 confirmed and the page contains the seed button plus `005930.KS` / `000660.KS`.
+
+## 2026-05-05 Account-Key Manual Portfolio Step
+
+### Background
+
+- User previously decided to use Toss Securities for general trading and Kiwoom Securities for ISA.
+- User also noted that automatic broker synchronization is N/A and all portfolio input should remain manual.
+- Today the user asked to proceed as much as safely possible.
+
+### Cause
+
+- The app had broker account routing preferences, but `holdings` and `trades` did not persist the selected account.
+- Without an account field, later Toss/Kiwoom manual reconciliation would be ambiguous.
+
+### Change
+
+- Added `account_key` to:
+  - `holdings`
+  - `trades`
+  - `holdings_snapshot`
+  - `Holding`
+  - `TradeEntry`
+- Added migration guards for those columns.
+- Updated manual CLI:
+  - `--add-holding --account-key ...`
+  - `--record-trade --account-key ...`
+  - portfolio/trade listing shows account key.
+- Updated web UI:
+  - holding input account selector
+  - trade input account selector
+  - holdings table account column
+  - trades table account column.
+- Preserved account key when refreshing holding current prices.
+
+### 사전 스펙에 없는 임의 결정
+
+- Background: The user asked to add broker/account fields, but did not explicitly approve a risky primary-key migration.
+- Cause: Supporting the same ticker in both Toss and Kiwoom would require changing `holdings` from ticker-primary to account+ticker-primary, which is a larger data migration.
+- Change: This step adds `account_key` as a persisted field but keeps the existing `ticker` primary key.
+- Operating rule: Manual records now keep account context, but same-ticker multi-account split remains a future migration.
+- Verification: Focused tests verify account keys round-trip through holdings/trades and existing backtest snapshots still work.
+
+### Verification
+
+- `py -3 -m compileall -q app` passed.
+- Focused tests passed: `py -3 -m pytest tests\test_operational_cli.py tests\test_journal.py tests\test_web_ui.py tests\backtest\test_replay.py -p no:cacheprovider` passed 12 tests.
+- Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 76 tests.
+- Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 confirmed and the rendered page contains `account_key`, `GENERAL_TOSS`, `ISA_KIWOOM`, and `계좌`.

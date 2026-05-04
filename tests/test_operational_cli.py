@@ -19,6 +19,7 @@ def args(**kwargs):
     defaults = {
         "ticker": "AAPL",
         "market": "US",
+        "account_key": "ISA_KIWOOM",
         "quantity": 2.0,
         "avg_price": 150.0,
         "current_price": 180.0,
@@ -47,6 +48,7 @@ def test_cash_holding_snapshot_flow(tmp_path):
     assert "완료" in run_add_holding(config, args())
     listing = run_list_portfolio(config)
     assert "AAPL" in listing
+    assert "ISA_KIWOOM" in listing
     assert "12,000,000원" in listing
     assert "1개 종목" in run_snapshot_holdings(config)
 
@@ -57,6 +59,7 @@ def test_record_trade_and_list(tmp_path):
     assert "매매 일지 저장 완료" in result
     listing = run_list_trades(config)
     assert "AAPL" in listing
+    assert "ISA_KIWOOM" in listing
     assert "운영 입력 테스트" in listing
 
 
@@ -66,4 +69,3 @@ def test_watchlist_add_and_list(tmp_path):
     listing = run_watch_list(config)
     assert "AMD" in listing
     assert "실적 후 확인" in listing
-

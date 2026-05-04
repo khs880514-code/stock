@@ -101,6 +101,7 @@ def _load_portfolio_snapshot(
         holdings.append(
             Holding(
                 ticker=row["ticker"],
+                account_key=row["account_key"],
                 market="US",
                 quantity=row["shares"],
                 avg_price=row["avg_cost_usd"],

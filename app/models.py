@@ -47,6 +47,7 @@ class Source(BaseModel):
 
 class Holding(BaseModel):
     ticker: str
+    account_key: str = "GENERAL_TOSS"
     market: Literal["US", "KR"] = "US"
     quantity: float
     avg_price: float
@@ -59,6 +60,11 @@ class Holding(BaseModel):
     @classmethod
     def normalize_ticker(cls, value: str) -> str:
         return value.upper().strip()
+
+    @field_validator("account_key")
+    @classmethod
+    def normalize_holding_account(cls, value: str) -> str:
+        return value.upper().strip() or "GENERAL_TOSS"
 
 
 class PortfolioSnapshot(BaseModel):
@@ -177,6 +183,7 @@ class TradeEntry(BaseModel):
     id: int | None = None
     timestamp: datetime
     ticker: str
+    account_key: str = "GENERAL_TOSS"
     action: str
     quantity: float
     avg_price: float
@@ -194,6 +201,11 @@ class TradeEntry(BaseModel):
     @classmethod
     def normalize_ticker(cls, value: str) -> str:
         return value.upper().strip()
+
+    @field_validator("account_key")
+    @classmethod
+    def normalize_trade_account(cls, value: str) -> str:
+        return value.upper().strip() or "GENERAL_TOSS"
 
 
 class CollectionLog(BaseModel):

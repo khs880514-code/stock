@@ -46,11 +46,12 @@ class PortfolioStore:
             conn.execute(
                 """
                 INSERT INTO holdings (
-                  ticker, market, quantity, avg_price, current_price, currency, asset_type,
+                  ticker, account_key, market, quantity, avg_price, current_price, currency, asset_type,
                   sector_tag, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(ticker) DO UPDATE SET
+                  account_key=excluded.account_key,
                   market=excluded.market,
                   quantity=excluded.quantity,
                   avg_price=excluded.avg_price,
@@ -62,6 +63,7 @@ class PortfolioStore:
                 """,
                 (
                     holding.ticker,
+                    holding.account_key,
                     holding.market,
                     holding.quantity,
                     holding.avg_price,
@@ -82,7 +84,7 @@ class PortfolioStore:
         with connect(self.db_path) as conn:
             rows = conn.execute(
                 """
-                SELECT ticker, market, quantity, avg_price, current_price, currency, asset_type, sector_tag
+                SELECT ticker, account_key, market, quantity, avg_price, current_price, currency, asset_type, sector_tag
                 FROM holdings
                 ORDER BY ticker
                 """
@@ -111,15 +113,16 @@ class PortfolioStore:
             conn.executemany(
                 """
                 INSERT INTO holdings_snapshot (
-                  taken_at, trade_id, ticker, shares, avg_cost_usd, fx_usdkrw
+                  taken_at, trade_id, ticker, account_key, shares, avg_cost_usd, fx_usdkrw
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
                         now,
                         trade_id,
                         holding.ticker,
+                        holding.account_key,
                         holding.quantity,
                         _avg_cost_usd(holding, self.config.fx_usd_krw),
                         self.config.fx_usd_krw,
