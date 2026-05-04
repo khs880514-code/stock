@@ -713,3 +713,61 @@
 - Focused tests passed: `py -3 -m pytest tests\test_operational_cli.py tests\test_journal.py tests\test_web_ui.py tests\backtest\test_replay.py -p no:cacheprovider` passed 12 tests.
 - Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 76 tests.
 - Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 confirmed and the rendered page contains `account_key`, `GENERAL_TOSS`, `ISA_KIWOOM`, and `계좌`.
+## 2026-05-05 Candidate Discovery / Fundamental Screener Step
+
+### Background
+
+- User asked whether the app could consider many stock-selection methods such as PER, filter objectively, produce a pure candidate list, and then attach news so the user can choose.
+- The user also asked that plans show what is being implemented, progress, and next steps.
+
+### Cause
+
+- The app could review a buy request and display recent news/disclosures, but it did not have a first-stage candidate discovery queue.
+- Without a separate screener, the workflow jumped too quickly from "interesting ticker" to buy-check.
+
+### Change
+
+- Added `stock_fundamentals` schema for manual/source-based fundamental snapshots.
+- Added `app/data/fundamentals_store.py`.
+- Added `app/engines/stock_screener.py`.
+- Added CLI:
+  - `--fundamental-set`
+  - `--fundamental-list`
+  - `--screen-stocks`
+- Added web UI section:
+  - `후보 발굴 / Candidate Screener`
+  - manual financial metric form
+  - PASS/WATCH/REJECT table
+  - linked latest news, SEC filing, and research-note counts.
+- Added tests for store round-trip, screener status behavior, CLI flow, web form save, and dashboard rendering.
+
+### 사전에 없는 임의 결정
+
+- Default v1 thresholds were selected conservatively because the user asked for a practical first filter but no exact investment-factor spec exists yet:
+  - PER <= 25
+  - PBR <= 4
+  - debt/equity <= 150%
+  - ROE >= 8%
+  - operating margin >= 5%
+  - revenue growth >= -5%
+- Missing metrics do not silently pass. If fewer than 5 core metrics are present, the candidate remains `WATCH`.
+- `PASS` means "additional review candidate", not "buy".
+- No automatic fundamental-data API was added in this step. Inputs remain manual/source-based until the user approves API/provider work.
+
+### Operating Rule
+
+- Use screener output as the top of the research funnel:
+  1. collect/save candidate fundamentals,
+  2. filter into PASS/WATCH/REJECT,
+  3. inspect linked news/disclosures/research notes,
+  4. only then run buy-check if the user wants to review an actual purchase.
+- News/disclosures/research notes provide context and questions, not automatic recommendation changes.
+- Toss/Kiwoom broker sync remains N/A; portfolio and fundamentals remain manual inputs.
+
+### Verification
+
+- `py -3 -m compileall -q app tests` passed.
+- Focused tests passed: `py -3 -m pytest tests\test_fundamentals_screener.py tests\test_web_ui.py -q -p no:cacheprovider` passed 4 tests.
+- Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 79 tests.
+- Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 confirmed and the rendered page contains `Candidate Screener` and the fundamental input form.
+- CLI smoke passed: `py -3 -m app.main --screen-stocks` returned an empty candidate list when no fundamentals are stored.

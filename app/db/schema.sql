@@ -183,6 +183,39 @@ CREATE TABLE IF NOT EXISTS conditional_decisions (
   note TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS stock_fundamentals (
+  ticker TEXT PRIMARY KEY,
+  market TEXT NOT NULL DEFAULT 'KR',
+  company_name TEXT NOT NULL DEFAULT '',
+  sector_tag TEXT NOT NULL DEFAULT 'UNKNOWN',
+  as_of_date TEXT NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'KRW',
+  market_cap_krw REAL,
+  per REAL,
+  forward_per REAL,
+  pbr REAL,
+  psr REAL,
+  ev_ebitda REAL,
+  dividend_yield_pct REAL,
+  roe_pct REAL,
+  roa_pct REAL,
+  roic_pct REAL,
+  operating_margin_pct REAL,
+  net_margin_pct REAL,
+  revenue_growth_pct REAL,
+  eps_growth_pct REAL,
+  operating_income_growth_pct REAL,
+  debt_to_equity_pct REAL,
+  current_ratio REAL,
+  interest_coverage REAL,
+  fcf_yield_pct REAL,
+  price_momentum_3m_pct REAL,
+  price_momentum_12m_pct REAL,
+  notes TEXT NOT NULL DEFAULT '',
+  source TEXT NOT NULL DEFAULT 'manual',
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS news_headlines (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ticker TEXT NOT NULL,

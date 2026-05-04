@@ -29,6 +29,11 @@ def init_db(db_path: Path | str) -> None:
         _ensure_column(conn, "holdings", "account_key", "TEXT NOT NULL DEFAULT 'GENERAL_TOSS'")
         _ensure_column(conn, "trades", "account_key", "TEXT NOT NULL DEFAULT 'GENERAL_TOSS'")
         _ensure_column(conn, "holdings_snapshot", "account_key", "TEXT NOT NULL DEFAULT 'GENERAL_TOSS'")
+        _ensure_column(conn, "stock_fundamentals", "forward_per", "REAL")
+        _ensure_column(conn, "stock_fundamentals", "roic_pct", "REAL")
+        _ensure_column(conn, "stock_fundamentals", "fcf_yield_pct", "REAL")
+        _ensure_column(conn, "stock_fundamentals", "price_momentum_3m_pct", "REAL")
+        _ensure_column(conn, "stock_fundamentals", "price_momentum_12m_pct", "REAL")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:

@@ -14,6 +14,7 @@ from app.config import LEGAL_DISCLAIMER, AppConfig, load_config
 from app.data.buy_check_log import BuyCheckLogStore
 from app.data.conditional_orders import ConditionalDecisionStore
 from app.data.earnings_calendar_store import EarningsCalendarStore
+from app.data.fundamentals_store import FundamentalSnapshot, FundamentalsStore
 from app.data.macro_collector import MockMacroCollector
 from app.data.mock_event_calendar import MockEventCalendar
 from app.data.mock_price_provider import MockPriceProvider
@@ -26,6 +27,7 @@ from app.db.database import init_db
 from app.engines.buy_check_mode import review_buy_request
 from app.engines.core_etf_rules import evaluate_core_etf
 from app.engines.macro_event_explainer import detect_macro_triggers, explain_macro_event
+from app.engines.stock_screener import ScreenerCriteria, screen
 from app.journal.monthly_report import build_monthly_report
 from app.journal.trade_journal import TradeJournal
 from app.models import BuyReviewRequest, ConditionalDecision, Holding, MistakeType, TickerSensitivitySnapshot, TradeEntry
@@ -96,6 +98,40 @@ def main() -> None:
     parser.add_argument("--conditional-list", action="store_true", help="List active conditional decisions.")
     parser.add_argument("--condition", default="")
     parser.add_argument("--planned-action", default="WATCH")
+    parser.add_argument("--fundamental-set", action="store_true", help="Add or update one manual fundamental snapshot.")
+    parser.add_argument("--fundamental-list", action="store_true", help="List manual fundamental snapshots.")
+    parser.add_argument("--screen-stocks", action="store_true", help="Run conservative manual stock screener.")
+    parser.add_argument("--company-name", default="")
+    parser.add_argument("--as-of-date", default=None)
+    parser.add_argument("--market-cap-krw", type=float, default=None)
+    parser.add_argument("--per", type=float, default=None)
+    parser.add_argument("--forward-per", type=float, default=None)
+    parser.add_argument("--pbr", type=float, default=None)
+    parser.add_argument("--psr", type=float, default=None)
+    parser.add_argument("--ev-ebitda", type=float, default=None)
+    parser.add_argument("--dividend-yield-pct", type=float, default=None)
+    parser.add_argument("--roe-pct", type=float, default=None)
+    parser.add_argument("--roa-pct", type=float, default=None)
+    parser.add_argument("--roic-pct", type=float, default=None)
+    parser.add_argument("--operating-margin-pct", type=float, default=None)
+    parser.add_argument("--net-margin-pct", type=float, default=None)
+    parser.add_argument("--revenue-growth-pct", type=float, default=None)
+    parser.add_argument("--eps-growth-pct", type=float, default=None)
+    parser.add_argument("--operating-income-growth-pct", type=float, default=None)
+    parser.add_argument("--debt-to-equity-pct", type=float, default=None)
+    parser.add_argument("--current-ratio", type=float, default=None)
+    parser.add_argument("--interest-coverage", type=float, default=None)
+    parser.add_argument("--fcf-yield-pct", type=float, default=None)
+    parser.add_argument("--price-momentum-3m-pct", type=float, default=None)
+    parser.add_argument("--price-momentum-12m-pct", type=float, default=None)
+    parser.add_argument("--source", default="manual")
+    parser.add_argument("--notes", default="")
+    parser.add_argument("--max-per", type=float, default=25.0)
+    parser.add_argument("--max-pbr", type=float, default=4.0)
+    parser.add_argument("--min-roe-pct", type=float, default=8.0)
+    parser.add_argument("--max-debt-to-equity-pct", type=float, default=150.0)
+    parser.add_argument("--min-operating-margin-pct", type=float, default=5.0)
+    parser.add_argument("--min-revenue-growth-pct", type=float, default=-5.0)
     parser.add_argument("--web", action="store_true", help="Start local web UI.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
@@ -180,6 +216,18 @@ def main() -> None:
 
     if args.conditional_list:
         print(run_conditional_list(config, args.ticker))
+        return
+
+    if args.fundamental_set:
+        print(run_fundamental_set(config, args))
+        return
+
+    if args.fundamental_list:
+        print(run_fundamental_list(config))
+        return
+
+    if args.screen_stocks:
+        print(run_screen_stocks(config, args))
         return
 
     if args.demo:
@@ -537,6 +585,86 @@ def run_conditional_list(config: AppConfig, ticker: str | None = None) -> str:
         expires = item.expires_at.date().isoformat() if item.expires_at else "-"
         lines.append(f"- #{item.id or '-'} {item.ticker} {item.planned_action}: {item.condition_text} (expires={expires})")
     return "\n".join(lines)
+
+
+def run_fundamental_set(config: AppConfig, args: argparse.Namespace) -> str:
+    as_of = date.fromisoformat(args.as_of_date) if args.as_of_date else datetime.now(tz=KST).date()
+    FundamentalsStore(config.db_path).upsert(
+        FundamentalSnapshot(
+            ticker=args.ticker,
+            market=args.market,
+            company_name=args.company_name,
+            sector_tag=args.sector_tag,
+            as_of_date=as_of,
+            currency=args.currency,
+            market_cap_krw=args.market_cap_krw,
+            per=args.per,
+            forward_per=args.forward_per,
+            pbr=args.pbr,
+            psr=args.psr,
+            ev_ebitda=args.ev_ebitda,
+            dividend_yield_pct=args.dividend_yield_pct,
+            roe_pct=args.roe_pct,
+            roa_pct=args.roa_pct,
+            roic_pct=args.roic_pct,
+            operating_margin_pct=args.operating_margin_pct,
+            net_margin_pct=args.net_margin_pct,
+            revenue_growth_pct=args.revenue_growth_pct,
+            eps_growth_pct=args.eps_growth_pct,
+            operating_income_growth_pct=args.operating_income_growth_pct,
+            debt_to_equity_pct=args.debt_to_equity_pct,
+            current_ratio=args.current_ratio,
+            interest_coverage=args.interest_coverage,
+            fcf_yield_pct=args.fcf_yield_pct,
+            price_momentum_3m_pct=args.price_momentum_3m_pct,
+            price_momentum_12m_pct=args.price_momentum_12m_pct,
+            notes=args.notes,
+            source=args.source,
+        )
+    )
+    return f"재무지표 저장 완료: {args.ticker.upper()}"
+
+
+def run_fundamental_list(config: AppConfig) -> str:
+    items = FundamentalsStore(config.db_path).list_all()
+    lines = ["재무지표"]
+    if not items:
+        lines.append("- 없음")
+    for item in items:
+        lines.append(
+            f"- {item.ticker} {item.company_name or '-'} {item.sector_tag}: "
+            f"PER={_fmt(item.per)}, PBR={_fmt(item.pbr)}, ROE={_fmt(item.roe_pct)}%, "
+            f"Debt={_fmt(item.debt_to_equity_pct)}%"
+        )
+    return "\n".join(lines)
+
+
+def run_screen_stocks(config: AppConfig, args: argparse.Namespace) -> str:
+    candidates = screen(
+        FundamentalsStore(config.db_path).list_all(),
+        ScreenerCriteria(
+            max_per=args.max_per,
+            max_pbr=args.max_pbr,
+            max_debt_to_equity_pct=args.max_debt_to_equity_pct,
+            min_roe_pct=args.min_roe_pct,
+            min_operating_margin_pct=args.min_operating_margin_pct,
+            min_revenue_growth_pct=args.min_revenue_growth_pct,
+        ),
+    )
+    lines = ["후보 발굴 결과"]
+    if not candidates:
+        lines.append("- 재무지표 없음")
+    for item in candidates:
+        lines.append(
+            f"- {item.status} {item.ticker} {item.company_name or '-'} score={item.score} "
+            f"data={item.data_points} reasons={'; '.join(item.reasons[:3]) or '-'} "
+            f"cautions={'; '.join(item.cautions[:2]) or '-'}"
+        )
+    return "\n".join(lines)
+
+
+def _fmt(value: float | None) -> str:
+    return "-" if value is None else f"{value:g}"
 
 
 def _format_backtest_summary(report: dict) -> str:

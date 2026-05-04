@@ -165,6 +165,26 @@ py -3 -m app.main --conditional-add --ticker 005930.KS --condition "외국인 �
 
 한국 종목은 KRX 휴장일이면 투자 판단과 별개로 buy-check가 운영상 `NO_TRADE`를 냅니다. 예를 들어 2026-05-05 어린이날은 휴장으로 처리하고 다음 개장일 재검토를 안내합니다.
 
+## 후보 발굴 / 재무 스크리너
+
+PER, PBR, ROE, 영업이익률, 매출 성장률, 부채비율 같은 재무지표를 수동으로 저장하고, 보수적인 기본 필터로 후보 목록을 만들 수 있습니다. 이 기능은 매수 추천이나 자동 주문이 아니라 `후보 대기열`입니다.
+
+```bash
+py -3 -m app.main --fundamental-set --ticker 005930.KS --market KR --company-name "Samsung Electronics" --sector-tag AI_SEMICONDUCTOR --per 14 --forward-per 13 --pbr 1.3 --roe-pct 12 --operating-margin-pct 18 --revenue-growth-pct 7 --debt-to-equity-pct 35 --source manual
+py -3 -m app.main --fundamental-list
+py -3 -m app.main --screen-stocks
+```
+
+기본 필터는 다음처럼 동작합니다.
+
+- `PASS`: 현재 입력값 기준으로 추가 검토 후보.
+- `WATCH`: 일부 조건은 괜찮지만 데이터가 부족하거나 강한 우위가 부족한 상태.
+- `REJECT`: 입력된 핵심 지표 중 보수적 기준을 명확히 벗어난 상태.
+
+UI의 `후보 발굴 / Candidate Screener` 영역에서는 재무지표 입력 폼, 필터 결과, 종목별 최근 뉴스·공시·리서치 노트 개수를 함께 보여줍니다. 뉴스/공시/리서치는 결정을 자동으로 바꾸지 않고, 사용자가 후보를 비교할 때 볼 근거로만 붙습니다.
+
+현재 단계에서는 재무지표 자동 수집 API를 붙이지 않았습니다. Toss/Kiwoom 포트폴리오 동기화도 N/A 유지이며, 재무지표·포트폴리오 입력은 수동 경로를 기본으로 둡니다.
+
 ## Backtest Harness
 
 과거 매수 기록을 현재 룰엔진으로 replay합니다.
