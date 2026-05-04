@@ -622,7 +622,7 @@
 - New focused tests passed: `py -3 -m pytest tests\rules\test_holiday_gap_setup.py tests\rules\test_post_run_decomposition.py tests\rules\test_decision_protection.py tests\test_ticker_sensitivity_store.py -p no:cacheprovider` passed 11 tests.
 - Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 73 tests.
 
-## 2026-05-04 KR Holiday Guard and Semiconductor Defaults
+## 2026-05-04 KR Holiday Guard and Semiconductor Estimates
 
 ### User Request
 
@@ -638,10 +638,18 @@
 - Added CLI seed:
   - `py -3 -m app.main --seed-kr-semiconductor-sensitivity`
 - Added web UI button:
-  - `삼성전자/하이닉스 기본 민감도 저장`
-- Added Samsung Electronics and SK Hynix default sensitivity assumptions:
+  - `삼성전자/하이닉스 추정 민감도 저장`
+- Added Samsung Electronics and SK Hynix estimated sensitivity starter rows:
   - `005930.KS`: SMH proxy, foreign ownership 55%, sector correlation 0.65, KOSPI beta 1.0
   - `000660.KS`: SMH proxy, foreign ownership 53%, sector correlation 0.78, KOSPI beta 1.2
+
+### 사전 스펙에 없는 임의 결정
+
+- Background: The user asked for a quick Samsung Electronics / SK Hynix simulation and then asked to continue.
+- Cause: No live foreign-ownership/correlation API is connected yet, but the UI needed a convenient way to start simulation.
+- Change: The seed command/button now stores these rows as estimated starter values, not observed values. `foreign_ownership_taken_at` and `corr_taken_at` stay empty.
+- Operating rule: Treat seeded values as conservative simulation inputs only. Replace them with checked values before treating holiday-gap output as complete.
+- Verification: Tests assert that seeded semiconductor estimates are not marked observed.
 
 ### Operating Rule
 
@@ -652,8 +660,8 @@
 ### Verification
 
 - Added focused tests for KRX Children's Day closure and KR buy-check holiday blocking.
-- Added test for Samsung/Hynix default sensitivity seeding.
+- Added test for Samsung/Hynix estimated sensitivity seeding.
 - Focused tests passed: `py -3 -m pytest tests\test_market_calendar.py tests\test_ticker_sensitivity_store.py tests\test_buy_check_mode.py tests\test_web_ui.py -p no:cacheprovider` passed 12 tests.
 - Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 76 tests.
-- Seeded the current local DB with Samsung Electronics and SK Hynix default sensitivity rows.
+- Seeded the current local DB with Samsung Electronics and SK Hynix estimated sensitivity rows.
 - Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 confirmed and the page contains the seed button plus `005930.KS` / `000660.KS`.

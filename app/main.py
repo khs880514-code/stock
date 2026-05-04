@@ -488,10 +488,8 @@ def run_sensitivity_list(config: AppConfig) -> str:
 
 
 def run_seed_kr_semiconductor_sensitivity(config: AppConfig) -> str:
-    count = TickerSensitivityStore(config.db_path).seed_kr_semiconductor_defaults(
-        observed_at=datetime.now(tz=KST).date()
-    )
-    return f"국내 반도체 기본 민감도 저장 완료: {count}개 (005930.KS, 000660.KS)"
+    count = TickerSensitivityStore(config.db_path).seed_kr_semiconductor_estimates()
+    return f"국내 반도체 추정 민감도 저장 완료: {count}개 (005930.KS, 000660.KS, 관측일 없음)"
 
 
 def run_blackout_set(config: AppConfig, args: argparse.Namespace) -> str:

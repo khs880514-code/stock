@@ -143,10 +143,8 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
         return f"종목 민감도 저장 완료: {form.get('ticker', '').upper()}", ""
 
     if path == "/seed-kr-semiconductor-sensitivity":
-        count = TickerSensitivityStore(config.db_path).seed_kr_semiconductor_defaults(
-            observed_at=datetime.now(tz=KST).date()
-        )
-        return f"국내 반도체 기본 민감도 저장 완료: {count}개", ""
+        count = TickerSensitivityStore(config.db_path).seed_kr_semiconductor_estimates()
+        return f"국내 반도체 추정 민감도 저장 완료: {count}개", ""
 
     if path == "/blackout":
         until = date.fromisoformat(form.get("until_date", "")) if form.get("until_date") else datetime.now(tz=KST).date() + timedelta(days=1)
@@ -473,7 +471,8 @@ def _watch_form() -> str:
 def _sensitivity_form() -> str:
     return """<div class="stacked-forms">
 <form method="post" action="/seed-kr-semiconductor-sensitivity">
-  <button>삼성전자/하이닉스 기본 민감도 저장</button>
+  <button>삼성전자/하이닉스 추정 민감도 저장</button>
+  <p class="form-note">실제 관측값이 아니라 시뮬레이션용 출발점입니다. 외국인 지분과 상관 관측일은 비워두며, 확인 후 직접 덮어쓰세요.</p>
 </form>
 <form method="post" action="/sensitivity">
   <label>종목<input name="ticker" value="005930.KS" required></label>
@@ -1104,6 +1103,7 @@ label { display: grid; gap: 5px; color: #374151; font-size: 13px; }
 input, select, textarea { width: 100%; min-height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 9px; font: inherit; }
 textarea { min-height: 72px; resize: vertical; }
 button { min-height: 38px; border: 0; border-radius: 6px; background: #2563eb; color: white; font-weight: 700; cursor: pointer; }
+.form-note { margin: -2px 0 0; color: #6b7280; font-size: 12px; line-height: 1.45; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .notice { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
 .empty { color: #6b7280; margin: 0; }

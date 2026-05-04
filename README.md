@@ -152,6 +152,8 @@ py -3 -m app.main --seed-kr-semiconductor-sensitivity
 py -3 -m app.main --sensitivity-list
 ```
 
+`--seed-kr-semiconductor-sensitivity`는 실제 관측값을 가져오는 기능이 아닙니다. 삼성전자/하이닉스 시뮬레이션을 바로 시작하기 위한 추정 출발점만 넣고, 외국인 지분/상관 관측일은 비워 둡니다. 실제 매수 판단 전에 외국인 지분율, 상관, 베타는 직접 확인한 값으로 덮어쓰는 운영을 기본값으로 둡니다.
+
 후회 추격 방지를 위해 관찰 블랙아웃과 조건부 결정을 남길 수 있습니다.
 
 ```bash

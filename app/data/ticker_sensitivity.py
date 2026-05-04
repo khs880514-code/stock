@@ -23,7 +23,7 @@ DEFAULT_SECTOR_PROXY = {
 }
 
 
-DEFAULT_KR_SEMICONDUCTOR_SENSITIVITY = {
+ESTIMATED_KR_SEMICONDUCTOR_SENSITIVITY = {
     "005930.KS": TickerSensitivitySnapshot(
         ticker="005930.KS",
         market="KR",
@@ -163,27 +163,33 @@ class TickerSensitivityStore:
                 (normalized, observed_at.isoformat(), foreign_ownership_pct, source),
             )
 
-    def seed_kr_semiconductor_defaults(self, observed_at: date) -> int:
+    def seed_kr_semiconductor_estimates(self) -> int:
         count = 0
-        for snapshot in DEFAULT_KR_SEMICONDUCTOR_SENSITIVITY.values():
-            dated = snapshot.model_copy(
-                update={
-                    "foreign_ownership_taken_at": observed_at,
-                    "corr_taken_at": observed_at,
-                }
+        for snapshot in ESTIMATED_KR_SEMICONDUCTOR_SENSITIVITY.values():
+            self.upsert(
+                snapshot.model_copy(
+                    update={
+                        "foreign_ownership_taken_at": None,
+                        "corr_taken_at": None,
+                        "manual_override": False,
+                    }
+                )
             )
-            self.upsert(dated)
             count += 1
         return count
 
 
 def is_foreign_stale(snapshot: TickerSensitivitySnapshot, today: date, max_age_days: int = 3) -> bool:
+    if snapshot.foreign_ownership_pct is not None and snapshot.foreign_ownership_taken_at is None:
+        return True
     if snapshot.foreign_ownership_taken_at is None:
         return False
     return (today - snapshot.foreign_ownership_taken_at).days > max_age_days
 
 
 def is_corr_stale(snapshot: TickerSensitivitySnapshot, today: date, max_age_days: int = 10) -> bool:
+    if snapshot.us_sector_corr_60d is not None and snapshot.corr_taken_at is None:
+        return True
     if snapshot.corr_taken_at is None:
         return False
     return (today - snapshot.corr_taken_at).days > max_age_days
