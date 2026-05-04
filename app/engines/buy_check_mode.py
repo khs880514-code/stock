@@ -3,6 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from app.config import AppConfig
+from app.data.news_store import NewsStore
+from app.data.price_history import PriceHistoryStore
+from app.data.ticker_sensitivity import TickerSensitivityStore
+from app.data.watchlist_store import WatchlistStore
 from app.engines.event_risk import events_within_window
 from app.engines.overconfidence_detector import detect_overconfidence
 from app.engines.portfolio_risk import (
@@ -20,10 +24,13 @@ from app.models import (
     DataQuality,
     Event,
     PortfolioSnapshot,
+    PostDropContext,
     PriceHistoryBar,
     TradeEntry,
 )
-from app.rules import post_drop_chase
+from app.rules import holiday_gap_setup, post_drop_chase, post_run_decomposition
+from app.rules.decision_protection import active_blackout, detect_regret_chase, suggest_blackout
+from app.rules.post_run_news_mapping import classify_post_run_news
 
 
 DEFAULT_SECTOR_BY_TICKER = {
@@ -48,8 +55,13 @@ def review_buy_request(
 ) -> AlertDecision:
     blockers: list[str] = []
     support_notes: list[str] = []
+    cap_ratios: list[float] = []
     holding = find_holding(portfolio, request.ticker)
     sector_tag = holding.sector_tag if holding else DEFAULT_SECTOR_BY_TICKER.get(request.ticker, "UNKNOWN")
+    sensitivity = _safe_sensitivity(config, request.ticker)
+    watch_item = _safe_watch_item(config, request.ticker)
+    blackout = active_blackout(watch_item, now.date())
+    blackout_active = bool(blackout and blackout.active)
 
     if "market" in request.price_type.lower() or "시장가" in request.price_type:
         blockers.append("시장가 방식 입력은 차단")
@@ -95,24 +107,95 @@ def review_buy_request(
     blockers.extend(blocking_limit_reasons)
     support_notes.extend([reason for reason in limit_check.reasons if reason not in blocking_limit_reasons])
 
-    post_drop_context = post_drop_chase.evaluate(
-        ticker=request.ticker,
-        amount_krw=request.desired_amount_krw,
-        fomo=request.fomo_score,
-        portfolio=portfolio,
-        price_history=price_history or [],
-        earnings_dates=earnings_dates or [event.event_time.date() for event in events],
-        today=now.date(),
-        config=config,
-    )
-    if post_drop_context.triggered and post_drop_context.explanation:
-        support_notes.append(post_drop_context.explanation)
-        if post_drop_context.action == "block":
-            blockers.append("post_drop_chase: 최근 급락 후 추격매수 차단")
+    if blackout_active and blackout:
+        blockers.append(
+            f"decision_protection: {request.ticker} 관찰 블랙아웃 {blackout.do_not_watch_until}까지"
+        )
+        support_notes.append("[decision_protection] 블랙아웃 중에는 가격/갭/급등분해 세부 신호를 숨깁니다.")
+        post_drop_context = PostDropContext(triggered=False, bypass_reason="blackout")
+        holiday_gap_signal = None
+        relative_weakness_signal = None
+        post_run_context = None
+        regret_pattern = None
+    else:
+        full_price_history = price_history or _safe_history(config, request.ticker, now)
+        post_drop_context = post_drop_chase.evaluate(
+            ticker=request.ticker,
+            amount_krw=request.desired_amount_krw,
+            fomo=request.fomo_score,
+            portfolio=portfolio,
+            price_history=full_price_history,
+            earnings_dates=earnings_dates or [event.event_time.date() for event in events],
+            today=now.date(),
+            config=config,
+        )
+        if post_drop_context.triggered and post_drop_context.explanation:
+            support_notes.append(post_drop_context.explanation)
+            if post_drop_context.cap_ratio is not None:
+                cap_ratios.append(post_drop_context.cap_ratio)
+            if post_drop_context.action == "block":
+                blockers.append("post_drop_chase: 최근 급락 후 추격매수 차단")
+
+        kospi_history = _safe_history(config, "^KS11", now)
+        us_market_history = _safe_history(config, "^GSPC", now) or _safe_history(config, "SPY", now)
+        us_sector_history = (
+            _safe_history(config, sensitivity.us_sector_proxy_symbol, now)
+            if sensitivity and sensitivity.us_sector_proxy_symbol
+            else []
+        )
+        gap_days, us_gap_return = _holiday_gap_inputs(full_price_history, us_market_history, now)
+        holiday_gap_signal = holiday_gap_setup.evaluate(
+            ticker=request.ticker,
+            today=now.date(),
+            sensitivity=sensitivity,
+            gap_days=gap_days,
+            us_accumulated_return_pct=us_gap_return,
+            config=config,
+        )
+        if holiday_gap_signal.explanation:
+            support_notes.append(holiday_gap_signal.explanation)
+        if holiday_gap_signal.triggered and holiday_gap_signal.cap_ratio is not None:
+            cap_ratios.append(holiday_gap_signal.cap_ratio)
+
+        relative_weakness_signal = holiday_gap_setup.evaluate_relative_weakness(
+            ticker=request.ticker,
+            ticker_history=full_price_history,
+            kospi_history=kospi_history,
+            today=now.date(),
+        )
+        if relative_weakness_signal.triggered and relative_weakness_signal.explanation:
+            support_notes.append(relative_weakness_signal.explanation)
+
+        latest_news = _safe_news(config, request.ticker)
+        post_run_context = post_run_decomposition.evaluate(
+            ticker=request.ticker,
+            today=now.date(),
+            ticker_history=full_price_history,
+            kospi_history=kospi_history,
+            us_sector_history=us_sector_history,
+            us_market_history=us_market_history,
+            sensitivity=sensitivity,
+            news_categories=classify_post_run_news(latest_news),
+            news_available=bool(latest_news),
+            config=config,
+        )
+        if post_run_context.triggered and post_run_context.explanation:
+            support_notes.append(post_run_context.explanation)
+        if post_run_context.triggered and post_run_context.cap_ratio is not None:
+            cap_ratios.append(post_run_context.cap_ratio)
+
+        regret_pattern = detect_regret_chase(
+            ticker=request.ticker,
+            now=now,
+            db_path=config.db_path,
+            config=config,
+        )
+        if regret_pattern.triggered and regret_pattern.explanation:
+            blockers.append(regret_pattern.explanation)
 
     bear_case, do_not_buy_if, sources = build_bear_case(request.ticker, sector_tag)
     if blockers:
-        return AlertDecision(
+        decision = AlertDecision(
             ticker=request.ticker,
             action=Action.NO_TRADE,
             max_amount_krw=0,
@@ -125,17 +208,23 @@ def review_buy_request(
             llm_assisted_fields=["bear_case", "do_not_buy_if"],
             sources=sources,
             post_drop_context=post_drop_context,
+            ticker_sensitivity_used=sensitivity,
+            holiday_gap_signal=holiday_gap_signal,
+            relative_weakness_signal=relative_weakness_signal,
+            post_run_decomposition=post_run_context,
+            regret_pattern=regret_pattern,
         )
+        return _with_blackout_suggestion(decision, now, config)
 
     max_amount = min(
         request.desired_amount_krw,
         limit_check.capped_amount_krw,
         max(portfolio.cash_krw - config.min_cash_krw, 0),
     )
-    if post_drop_context.triggered and post_drop_context.cap_ratio is not None:
-        max_amount = int(max_amount * post_drop_context.cap_ratio)
+    if cap_ratios:
+        max_amount = int(max_amount * min(cap_ratios))
         support_notes.append(f"사용자 확인 필요: 조정 후 최대 검토 금액 {max_amount:,}원")
-    return AlertDecision(
+    decision = AlertDecision(
         ticker=request.ticker,
         action=Action.SMALL_BUY_CANDIDATE,
         max_amount_krw=max_amount,
@@ -148,7 +237,72 @@ def review_buy_request(
         llm_assisted_fields=["bear_case", "do_not_buy_if"],
         sources=sources,
         post_drop_context=post_drop_context,
+        ticker_sensitivity_used=sensitivity,
+        holiday_gap_signal=holiday_gap_signal,
+        relative_weakness_signal=relative_weakness_signal,
+        post_run_decomposition=post_run_context,
+        regret_pattern=regret_pattern,
     )
+    return _with_blackout_suggestion(decision, now, config)
+
+
+def _safe_sensitivity(config: AppConfig, ticker: str):
+    try:
+        return TickerSensitivityStore(config.db_path).get(ticker)
+    except Exception:
+        return None
+
+
+def _safe_watch_item(config: AppConfig, ticker: str):
+    try:
+        return WatchlistStore(config.db_path).get(ticker)
+    except Exception:
+        return None
+
+
+def _safe_history(config: AppConfig, ticker: str | None, now: datetime) -> list[PriceHistoryBar]:
+    if not ticker:
+        return []
+    try:
+        return PriceHistoryStore(config.db_path).get_window(
+            ticker,
+            now.date() - timedelta(days=180),
+            now.date(),
+        )
+    except Exception:
+        return []
+
+
+def _safe_news(config: AppConfig, ticker: str):
+    try:
+        return NewsStore(config.db_path).latest(ticker, limit=20)
+    except Exception:
+        return []
+
+
+def _holiday_gap_inputs(
+    ticker_history: list[PriceHistoryBar], us_market_history: list[PriceHistoryBar], now: datetime
+) -> tuple[int, float | None]:
+    eligible = [bar for bar in ticker_history if bar.date <= now.date()]
+    if not eligible:
+        return 0, None
+    eligible.sort(key=lambda bar: bar.date)
+    last_local_date = eligible[-1].date
+    gap_days = (now.date() - last_local_date).days
+    if gap_days <= 0:
+        return 0, 0.0
+    us_rows = [bar for bar in us_market_history if last_local_date <= bar.date <= now.date()]
+    us_rows.sort(key=lambda bar: bar.date)
+    if len(us_rows) < 2 or us_rows[0].close <= 0:
+        return gap_days, None
+    return gap_days, (us_rows[-1].close - us_rows[0].close) / us_rows[0].close
+
+
+def _with_blackout_suggestion(decision: AlertDecision, now: datetime, config: AppConfig) -> AlertDecision:
+    suggested = suggest_blackout(decision, now, config)
+    if suggested is None:
+        return decision
+    return decision.model_copy(update={"blackout_suggested": suggested})
 
 
 def _same_ticker_trade_within(

@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 from app.alerts.message_templates import format_decision_message
 from app.config import LEGAL_DISCLAIMER, AppConfig
 from app.data.account_store import AccountStore, BrokerAccount, account_route_note, default_accounts
+from app.data.buy_check_log import BuyCheckLogStore
+from app.data.conditional_orders import ConditionalDecisionStore
 from app.data.data_status import build_api_readiness_status, build_ticker_data_status
 from app.data.earnings_calendar_store import EarningsCalendarStore, EarningsDate
 from app.data.filings_collector import FilingStore, SecFilingsCollector
@@ -16,12 +18,13 @@ from app.data.news_store import GoogleNewsRssCollector, NewsStore
 from app.data.price_history import PriceHistoryStore
 from app.data.portfolio_store import PortfolioStore
 from app.data.research_notes_store import ResearchNote, ResearchNotesStore
+from app.data.ticker_sensitivity import TickerSensitivityStore
 from app.data.watchlist_store import WatchlistStore
 from app.db.database import init_db
 from app.engines.buy_check_mode import review_buy_request
 from app.engines.news_flags import classify_headline, summarize_news_flags
 from app.journal.trade_journal import TradeJournal
-from app.models import BuyReviewRequest, Holding, MistakeType, TradeEntry
+from app.models import BuyReviewRequest, ConditionalDecision, Holding, MistakeType, TickerSensitivitySnapshot, TradeEntry
 
 
 KST = ZoneInfo("Asia/Seoul")
@@ -119,6 +122,55 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
         )
         return f"관심종목 저장 완료: {form.get('ticker', '').upper()}", ""
 
+    if path == "/sensitivity":
+        today = datetime.now(tz=KST).date()
+        TickerSensitivityStore(config.db_path).upsert(
+            TickerSensitivitySnapshot(
+                ticker=form.get("ticker", ""),
+                market=form.get("market", "KR"),
+                sector_tag=form.get("sector_tag", "UNKNOWN").upper(),
+                us_sector_proxy_symbol=form.get("proxy", "").upper() or None,
+                foreign_ownership_pct=_optional_float(form, "foreign_pct"),
+                foreign_ownership_taken_at=today if form.get("foreign_pct") else None,
+                us_sector_corr_60d=_optional_float(form, "sector_corr"),
+                us_market_corr_60d=_optional_float(form, "market_corr"),
+                fx_corr_60d=_optional_float(form, "fx_corr"),
+                beta_to_kospi_60d=_optional_float(form, "beta_kospi"),
+                corr_taken_at=today,
+                manual_override=True,
+            )
+        )
+        return f"종목 민감도 저장 완료: {form.get('ticker', '').upper()}", ""
+
+    if path == "/blackout":
+        until = date.fromisoformat(form.get("until_date", "")) if form.get("until_date") else datetime.now(tz=KST).date() + timedelta(days=1)
+        WatchlistStore(config.db_path).set_blackout(
+            form.get("ticker", ""),
+            until,
+            form.get("reason", "manual decision protection blackout"),
+        )
+        return f"관찰 블랙아웃 설정 완료: {form.get('ticker', '').upper()}", ""
+
+    if path == "/clear-blackout":
+        WatchlistStore(config.db_path).clear_blackout(form.get("ticker", ""), form.get("reason", "manual clear"))
+        return f"관찰 블랙아웃 해제 완료: {form.get('ticker', '').upper()}", ""
+
+    if path == "/conditional":
+        expires_at = None
+        if form.get("until_date"):
+            expires_at = datetime.combine(date.fromisoformat(form["until_date"]), datetime.max.time(), tzinfo=KST)
+        decision_id = ConditionalDecisionStore(config.db_path).add(
+            ConditionalDecision(
+                created_at=datetime.now(tz=KST),
+                ticker=form.get("ticker", ""),
+                condition_text=form.get("condition", ""),
+                planned_action=form.get("planned_action", "WATCH").upper(),
+                expires_at=expires_at,
+                note=form.get("note", ""),
+            )
+        )
+        return f"조건부 결정 저장 완료: #{decision_id}", ""
+
     if path == "/account":
         account = BrokerAccount(
             account_key=form.get("account_key", ""),
@@ -151,15 +203,16 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
         latest_research = ResearchNotesStore(config.db_path).latest(ticker, limit=5)
         data_status = build_ticker_data_status(config.db_path, [ticker], now.date())
         events = EarningsCalendarStore(config.db_path).upcoming_events([ticker], now)
+        buy_request = BuyReviewRequest(
+            ticker=ticker,
+            desired_amount_krw=_int(form, "amount_krw"),
+            reason_text=form.get("reason", ""),
+            fomo_score=_int(form, "fomo"),
+            friend_influence_score=_int(form, "influence"),
+            price_type=form.get("price_type", "limit"),
+        )
         decision = review_buy_request(
-            BuyReviewRequest(
-                ticker=ticker,
-                desired_amount_krw=_int(form, "amount_krw"),
-                reason_text=form.get("reason", ""),
-                fomo_score=_int(form, "fomo"),
-                friend_influence_score=_int(form, "influence"),
-                price_type=form.get("price_type", "limit"),
-            ),
+            buy_request,
             portfolio=portfolio,
             events=events,
             recent_trades=journal.recent_trades(now - timedelta(days=14)),
@@ -178,6 +231,12 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
             account,
         )
         journal.log_alert("buy_check_web", message, decision)
+        BuyCheckLogStore(config.db_path).add(
+            decision_at=now,
+            request=buy_request,
+            decision=decision,
+            price_at_decision=latest_price.close if latest_price else None,
+        )
         return "매수 검토 완료", message
 
     if path == "/update-prices":
@@ -242,6 +301,8 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
     accounts = AccountStore(config.db_path).list_accounts()
     tracked_tickers = sorted({holding.ticker for holding in portfolio.holdings} | {item.ticker for item in watch_items})
     trades = TradeJournal(config.db_path).recent_trades()
+    sensitivity_items = TickerSensitivityStore(config.db_path).list_all()
+    conditional_items = ConditionalDecisionStore(config.db_path).list_active(now=datetime.now(tz=KST))
     latest_news = NewsStore(config.db_path).latest(limit=12)
     latest_filings = FilingStore(config.db_path).latest(limit=12)
     upcoming_earnings = EarningsCalendarStore(config.db_path).upcoming(
@@ -285,6 +346,19 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
     <section>
       <h2>룰엔진이 보는 정보</h2>
       {_rule_context_panel(config, portfolio, trades)}
+    </section>
+    <section class="grid two">
+      <div>
+        <h2>종목 민감도 / 연휴 갭</h2>
+        {_sensitivity_form()}
+        {_sensitivity_table(sensitivity_items)}
+      </div>
+      <div>
+        <h2>결정 보호</h2>
+        {_blackout_form()}
+        {_conditional_form()}
+        {_conditional_table(conditional_items)}
+      </div>
     </section>
     <section>
       <h2>최근 정보</h2>
@@ -388,6 +462,70 @@ def _watch_form() -> str:
   <label>관찰 사유<textarea name="reason" required>실적 발표 후 재검토</textarea></label>
   <button>저장</button>
 </form>"""
+
+
+def _sensitivity_form() -> str:
+    return """<form method="post" action="/sensitivity">
+  <label>종목<input name="ticker" value="005930.KS" required></label>
+  <div class="row"><label>시장<select name="market"><option>KR</option><option>US</option></select></label><label>섹터 태그<input name="sector_tag" value="AI_SEMICONDUCTOR"></label></div>
+  <div class="row"><label>미국 프록시<input name="proxy" value="SMH"></label><label>외국인 지분 %<input name="foreign_pct" type="number" step="0.01" placeholder="53.0"></label></div>
+  <div class="row"><label>미국 섹터 상관<input name="sector_corr" type="number" step="0.01" placeholder="0.78"></label><label>KOSPI 베타<input name="beta_kospi" type="number" step="0.01" placeholder="1.00"></label></div>
+  <div class="row"><label>미국 시장 상관<input name="market_corr" type="number" step="0.01"></label><label>환율 상관<input name="fx_corr" type="number" step="0.01"></label></div>
+  <button>민감도 저장</button>
+</form>"""
+
+
+def _sensitivity_table(items) -> str:
+    if not items:
+        return '<p class="empty">저장된 종목 민감도 없음</p>'
+    rows = "".join(
+        (
+            f"<tr><td>{_e(item.ticker)}</td><td>{_e(item.sector_tag)}</td>"
+            f"<td>{_e(item.us_sector_proxy_symbol or '-')}</td>"
+            f"<td>{_e(item.foreign_ownership_pct if item.foreign_ownership_pct is not None else '-')}</td>"
+            f"<td>{_e(item.us_sector_corr_60d if item.us_sector_corr_60d is not None else '-')}</td>"
+            f"<td>{_e(item.beta_to_kospi_60d if item.beta_to_kospi_60d is not None else '-')}</td></tr>"
+        )
+        for item in items
+    )
+    return "<table><thead><tr><th>종목</th><th>섹터</th><th>프록시</th><th>외국인%</th><th>섹터상관</th><th>베타</th></tr></thead><tbody>" + rows + "</tbody></table>"
+
+
+def _blackout_form() -> str:
+    return """<div class="stacked-forms">
+  <form method="post" action="/blackout">
+    <label>블랙아웃 종목<input name="ticker" value="005930.KS" required></label>
+    <div class="row"><label>해제일<input name="until_date" type="date"></label><label>사유<input name="reason" value="후회 추격 방지"></label></div>
+    <button>관찰 블랙아웃 설정</button>
+  </form>
+  <form method="post" action="/clear-blackout">
+    <label>해제 종목<input name="ticker" value="005930.KS" required></label>
+    <button>블랙아웃 해제</button>
+  </form>
+</div>"""
+
+
+def _conditional_form() -> str:
+    return """<form method="post" action="/conditional">
+  <label>조건부 종목<input name="ticker" value="005930.KS" required></label>
+  <label>조건<textarea name="condition" required>외국인 순매수와 섹터 프록시 강세가 동시에 확인되면 재검토</textarea></label>
+  <div class="row"><label>계획 행동<select name="planned_action"><option>WATCH</option><option>SMALL_BUY_CANDIDATE</option><option>NO_TRADE</option></select></label><label>만료일<input name="until_date" type="date"></label></div>
+  <label>메모<textarea name="note"></textarea></label>
+  <button>조건부 결정 저장</button>
+</form>"""
+
+
+def _conditional_table(items) -> str:
+    if not items:
+        return '<p class="empty">활성 조건부 결정 없음</p>'
+    rows = "".join(
+        (
+            f"<tr><td>#{item.id or '-'}</td><td>{_e(item.ticker)}</td><td>{_e(item.planned_action)}</td>"
+            f"<td>{_e(item.condition_text)}</td><td>{_e(item.expires_at.date().isoformat() if item.expires_at else '-')}</td></tr>"
+        )
+        for item in items
+    )
+    return "<table><thead><tr><th>ID</th><th>종목</th><th>행동</th><th>조건</th><th>만료</th></tr></thead><tbody>" + rows + "</tbody></table>"
 
 
 def _account_panel(accounts) -> str:
@@ -564,6 +702,9 @@ def _rule_reference() -> str:
         ("현금", f"매수 후 현금이 기본 하한 미만이면 차단."),
         ("손실 종목 추가", "큰 손실 상태의 종목 추가 투입은 차단."),
         ("post_drop_chase", "최근 5거래일 급락 종목 추격매수는 경고 또는 차단."),
+        ("holiday_gap_setup", "국내 휴장 중 미국 섹터가 크게 움직이고 종목 민감도가 높으면 매수 상한을 낮춤."),
+        ("post_run_decomposition", "급등을 시장/섹터/뉴스 설명분으로 분해하고 잔여 급등만 추격 위험으로 표시."),
+        ("decision_protection", "NO_TRADE/WATCH 이후 급등을 보고 따라 사는 후회 추격과 관찰 블랙아웃을 관리."),
     ]
     return f"""<div class="rule-reference">
   <table>
@@ -828,6 +969,11 @@ def _int(form: dict[str, str], key: str) -> int:
 
 def _float(form: dict[str, str], key: str) -> float:
     return float(form.get(key, "0") or 0)
+
+
+def _optional_float(form: dict[str, str], key: str) -> float | None:
+    value = form.get(key, "").strip()
+    return float(value) if value else None
 
 
 def _tracked_tickers(config: AppConfig) -> list[str]:

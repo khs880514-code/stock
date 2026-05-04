@@ -135,6 +135,31 @@ set SEF_SEC_USER_AGENT=StockExpertFriend/1.0 your-email@example.com
 
 `post_drop_chase`는 최근 5거래일 안에 단일일 -7% 이하 하락 또는 누적 -10% 이하 하락이 있는 종목을 감지합니다. 실적일과 인접하면 high severity로 보고, FOMO 점수에 따라 차단 또는 금액 상한 축소를 적용합니다. QQQ, SMH 같은 코어 ETF는 기존 ETF 룰이 처리하므로 이 룰에서는 우회합니다.
 
+## 삼성전자/하이닉스 오판 방지 룰
+
+2026-05-04에 추가한 3개 룰은 “오른 종목을 무조건 막는” 장치가 아니라, 설명 가능한 상승과 후회 추격을 분리하기 위한 보조 룰입니다.
+
+- `ticker_sensitivity`: 종목별 시장, 섹터 태그, 미국 프록시 ETF, 외국인 지분율, 미국 섹터 상관, KOSPI 베타를 저장합니다.
+- `holiday_gap_setup`: 국내 휴장 중 미국 섹터가 크게 움직였고 외국인/섹터 민감도가 높은 종목이면 매수 상한을 낮춥니다.
+- `post_run_decomposition`: 최근 급등을 KOSPI, 미국 섹터, 뉴스 설명분으로 나누고 설명되지 않은 잔여 급등만 추격 위험으로 봅니다.
+- `decision_protection`: NO_TRADE/WATCH 직후 가격 급등을 보고 후회로 따라 사는 패턴을 감지하고, 관찰 블랙아웃/조건부 결정을 기록합니다.
+
+민감도는 UI의 `종목 민감도 / 연휴 갭` 영역 또는 CLI로 수동 입력합니다.
+
+```bash
+py -3 -m app.main --sensitivity-set --ticker 000660.KS --market KR --sector-tag AI_SEMICONDUCTOR --proxy SMH --foreign-pct 53 --sector-corr 0.78 --beta-kospi 1.2
+py -3 -m app.main --sensitivity-list
+```
+
+후회 추격 방지를 위해 관찰 블랙아웃과 조건부 결정을 남길 수 있습니다.
+
+```bash
+py -3 -m app.main --blackout-set --ticker 005930.KS --until-date 2026-05-05 --reason "후회 추격 방지"
+py -3 -m app.main --conditional-add --ticker 005930.KS --condition "외국인 순매수와 SMH 강세가 함께 확인되면 재검토" --planned-action WATCH
+```
+
+아직 자동 API 연결은 추가하지 않았습니다. 외국인 지분율, 섹터 상관, 미국 프록시 데이터는 오늘 단계에서 수동/캐시 기반이며, 실시간 DART/Naver/yfinance 자동 갱신은 API 연결 작업으로 남겨두었습니다.
+
 ## Backtest Harness
 
 과거 매수 기록을 현재 룰엔진으로 replay합니다.

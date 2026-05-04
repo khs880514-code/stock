@@ -150,6 +150,12 @@ class AlertDecision(BaseModel):
     llm_assisted_fields: list[str] = Field(default_factory=list)
     sources: list[Source] = Field(default_factory=list)
     post_drop_context: PostDropContext | None = None
+    ticker_sensitivity_used: TickerSensitivitySnapshot | None = None
+    holiday_gap_signal: HolidayGapSignal | None = None
+    relative_weakness_signal: RelativeWeaknessSignal | None = None
+    post_run_decomposition: PostRunDecomposition | None = None
+    blackout_suggested: BlackoutInfo | None = None
+    regret_pattern: RegretChasePattern | None = None
 
 
 class BuyReviewRequest(BaseModel):
@@ -234,3 +240,93 @@ class PostDropContext(BaseModel):
     action: Literal["block", "warn", "pass"] = "pass"
     cap_ratio: float | None = None
     explanation: str | None = None
+
+
+class TickerSensitivitySnapshot(BaseModel):
+    ticker: str
+    market: Literal["US", "KR"] = "KR"
+    sector_tag: str = "UNKNOWN"
+    us_sector_proxy_symbol: str | None = None
+    foreign_ownership_pct: float | None = None
+    foreign_ownership_taken_at: date | None = None
+    us_sector_corr_60d: float | None = None
+    us_market_corr_60d: float | None = None
+    fx_corr_60d: float | None = None
+    beta_to_kospi_60d: float | None = None
+    corr_taken_at: date | None = None
+    manual_override: bool = False
+
+    @field_validator("ticker")
+    @classmethod
+    def normalize_sensitivity_ticker(cls, value: str) -> str:
+        return value.upper().strip()
+
+
+class HolidayGapSignal(BaseModel):
+    triggered: bool = False
+    gap_days: int = 0
+    us_accumulated_return_pct: float | None = None
+    score: float = 0.0
+    severity: Literal["low", "medium", "high"] = "low"
+    cap_ratio: float | None = None
+    completeness: Literal["complete", "partial_stale_foreign", "partial_stale_corr", "partial_missing_sensitivity", "insufficient_market_data"] = "complete"
+    explanation: str | None = None
+
+
+class RelativeWeaknessSignal(BaseModel):
+    triggered: bool = False
+    ticker_return_pct: float | None = None
+    kospi_return_pct: float | None = None
+    explanation: str | None = None
+
+
+class PostRunDecomposition(BaseModel):
+    triggered: bool = False
+    total_change_pct: float | None = None
+    market_explained_pct: float | None = None
+    sector_explained_pct: float | None = None
+    news_explained_pct: float | None = None
+    residual_pct: float | None = None
+    severity: Literal["low", "medium", "high"] = "low"
+    cap_ratio: float | None = None
+    completeness: Literal["complete", "partial_no_sensitivity", "partial_no_news", "insufficient_price_data", "disabled"] = "complete"
+    explanation: str | None = None
+
+
+class BlackoutInfo(BaseModel):
+    ticker: str
+    active: bool = False
+    do_not_watch_until: date | None = None
+    reason: str = ""
+    set_at: datetime | None = None
+
+    @field_validator("ticker")
+    @classmethod
+    def normalize_blackout_ticker(cls, value: str) -> str:
+        return value.upper().strip()
+
+
+class RegretChasePattern(BaseModel):
+    triggered: bool = False
+    last_decision_at: datetime | None = None
+    last_action: str | None = None
+    price_then: float | None = None
+    price_now: float | None = None
+    gain_since_decision_pct: float | None = None
+    explanation: str | None = None
+
+
+class ConditionalDecision(BaseModel):
+    id: int | None = None
+    created_at: datetime
+    ticker: str
+    condition_text: str
+    planned_action: str = "WATCH"
+    expires_at: datetime | None = None
+    status: Literal["ACTIVE", "TRIGGERED", "EXPIRED", "CANCELLED"] = "ACTIVE"
+    note: str = ""
+
+    @field_validator("ticker")
+    @classmethod
+    def normalize_conditional_ticker(cls, value: str) -> str:
+        return value.upper().strip()

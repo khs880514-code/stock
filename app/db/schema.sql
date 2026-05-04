@@ -32,7 +32,18 @@ CREATE TABLE IF NOT EXISTS watchlist (
   priority INTEGER NOT NULL DEFAULT 3,
   sector_tag TEXT NOT NULL DEFAULT 'UNKNOWN',
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  do_not_watch_until TEXT,
+  blackout_reason TEXT,
+  blackout_set_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS blackout_override_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticker TEXT NOT NULL,
+  action TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  created_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS trades (
@@ -119,6 +130,54 @@ CREATE TABLE IF NOT EXISTS price_history (
   volume INTEGER,
   source TEXT NOT NULL,
   PRIMARY KEY (ticker, date)
+);
+
+CREATE TABLE IF NOT EXISTS ticker_sensitivity (
+  ticker TEXT PRIMARY KEY,
+  market TEXT NOT NULL,
+  sector_tag TEXT NOT NULL,
+  us_sector_proxy_symbol TEXT,
+  foreign_ownership_pct REAL,
+  foreign_ownership_taken_at TEXT,
+  us_sector_corr_60d REAL,
+  us_market_corr_60d REAL,
+  fx_corr_60d REAL,
+  beta_to_kospi_60d REAL,
+  corr_taken_at TEXT,
+  manual_override INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS foreign_ownership_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticker TEXT NOT NULL,
+  observed_at TEXT NOT NULL,
+  foreign_ownership_pct REAL NOT NULL,
+  source TEXT NOT NULL DEFAULT 'manual',
+  UNIQUE(ticker, observed_at, source)
+);
+
+CREATE TABLE IF NOT EXISTS buy_check_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  decision_at TEXT NOT NULL,
+  ticker TEXT NOT NULL,
+  action TEXT NOT NULL,
+  max_amount_krw INTEGER NOT NULL DEFAULT 0,
+  price_at_decision REAL,
+  reason_text TEXT NOT NULL DEFAULT '',
+  fomo_score INTEGER NOT NULL DEFAULT 0,
+  friend_influence_score INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS conditional_decisions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL,
+  ticker TEXT NOT NULL,
+  condition_text TEXT NOT NULL,
+  planned_action TEXT NOT NULL DEFAULT 'WATCH',
+  expires_at TEXT,
+  status TEXT NOT NULL DEFAULT 'ACTIVE',
+  note TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS news_headlines (

@@ -11,12 +11,16 @@ from app.backtest.replay import run_backtest
 from app.briefing.morning_briefing import build_morning_briefing
 from app.briefing.premarket_briefing import build_premarket_briefing
 from app.config import LEGAL_DISCLAIMER, AppConfig, load_config
+from app.data.buy_check_log import BuyCheckLogStore
+from app.data.conditional_orders import ConditionalDecisionStore
 from app.data.earnings_calendar_store import EarningsCalendarStore
 from app.data.macro_collector import MockMacroCollector
 from app.data.mock_event_calendar import MockEventCalendar
 from app.data.mock_price_provider import MockPriceProvider
 from app.data.pipeline import run_mock_collection
+from app.data.price_history import PriceHistoryStore
 from app.data.portfolio_store import PortfolioStore, seed_demo_portfolio
+from app.data.ticker_sensitivity import TickerSensitivityStore
 from app.data.watchlist_store import WatchlistStore
 from app.db.database import init_db
 from app.engines.buy_check_mode import review_buy_request
@@ -24,7 +28,7 @@ from app.engines.core_etf_rules import evaluate_core_etf
 from app.engines.macro_event_explainer import detect_macro_triggers, explain_macro_event
 from app.journal.monthly_report import build_monthly_report
 from app.journal.trade_journal import TradeJournal
-from app.models import BuyReviewRequest, Holding, MistakeType, TradeEntry
+from app.models import BuyReviewRequest, ConditionalDecision, Holding, MistakeType, TickerSensitivitySnapshot, TradeEntry
 from app.web_ui import run_web_ui
 
 
@@ -75,6 +79,21 @@ def main() -> None:
     parser.add_argument("--watch-remove", action="store_true", help="Remove one watchlist item by --ticker.")
     parser.add_argument("--watch-list", action="store_true", help="List watchlist items.")
     parser.add_argument("--priority", type=int, default=3)
+    parser.add_argument("--sensitivity-set", action="store_true", help="Add or update ticker sensitivity.")
+    parser.add_argument("--sensitivity-list", action="store_true", help="List ticker sensitivity snapshots.")
+    parser.add_argument("--foreign-pct", type=float, default=None)
+    parser.add_argument("--sector-corr", type=float, default=None)
+    parser.add_argument("--market-corr", type=float, default=None)
+    parser.add_argument("--fx-corr", type=float, default=None)
+    parser.add_argument("--beta-kospi", type=float, default=None)
+    parser.add_argument("--proxy", default=None)
+    parser.add_argument("--blackout-set", action="store_true", help="Set watch blackout for a ticker.")
+    parser.add_argument("--blackout-clear", action="store_true", help="Clear watch blackout for a ticker.")
+    parser.add_argument("--until-date", default=None, help="YYYY-MM-DD date for blackout or conditional expiry.")
+    parser.add_argument("--conditional-add", action="store_true", help="Record a conditional decision.")
+    parser.add_argument("--conditional-list", action="store_true", help="List active conditional decisions.")
+    parser.add_argument("--condition", default="")
+    parser.add_argument("--planned-action", default="WATCH")
     parser.add_argument("--web", action="store_true", help="Start local web UI.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
@@ -131,6 +150,30 @@ def main() -> None:
 
     if args.watch_list:
         print(run_watch_list(config))
+        return
+
+    if args.sensitivity_set:
+        print(run_sensitivity_set(config, args))
+        return
+
+    if args.sensitivity_list:
+        print(run_sensitivity_list(config))
+        return
+
+    if args.blackout_set:
+        print(run_blackout_set(config, args))
+        return
+
+    if args.blackout_clear:
+        print(run_blackout_clear(config, args.ticker))
+        return
+
+    if args.conditional_add:
+        print(run_conditional_add(config, args))
+        return
+
+    if args.conditional_list:
+        print(run_conditional_list(config, args.ticker))
         return
 
     if args.demo:
@@ -234,6 +277,9 @@ def run_buy_check(config: AppConfig, args: argparse.Namespace) -> str:
     journal = TradeJournal(config.db_path)
     now = datetime.now(tz=KST)
     events = EarningsCalendarStore(config.db_path).upcoming_events([args.ticker], now)
+    price_store = PriceHistoryStore(config.db_path)
+    price_history = price_store.get_window(args.ticker, now.date() - timedelta(days=180), now.date())
+    latest_price = price_store.latest_bar(args.ticker)
     decision = review_buy_request(
         BuyReviewRequest(
             ticker=args.ticker,
@@ -248,9 +294,23 @@ def run_buy_check(config: AppConfig, args: argparse.Namespace) -> str:
         recent_trades=journal.recent_trades(now - timedelta(days=14)),
         now=now,
         config=config,
+        price_history=price_history,
     )
     message = format_decision_message(f"{args.ticker.upper()} 매수 검토", decision)
     journal.log_alert("buy_check", message, decision)
+    BuyCheckLogStore(config.db_path).add(
+        decision_at=now,
+        request=BuyReviewRequest(
+            ticker=args.ticker,
+            desired_amount_krw=args.amount_krw,
+            reason_text=args.reason,
+            fomo_score=args.fomo,
+            friend_influence_score=args.influence,
+            price_type=args.price_type,
+        ),
+        decision=decision,
+        price_at_decision=latest_price.close if latest_price else None,
+    )
     return LEGAL_DISCLAIMER + "\n\n" + message
 
 
@@ -376,6 +436,93 @@ def run_watch_list(config: AppConfig) -> str:
         lines.append(
             f"- P{item.priority} {item.ticker} ({item.market}, {item.sector_tag}): {item.reason}"
         )
+    return "\n".join(lines)
+
+
+def run_sensitivity_set(config: AppConfig, args: argparse.Namespace) -> str:
+    store = TickerSensitivityStore(config.db_path)
+    existing = store.get(args.ticker)
+    snapshot = TickerSensitivitySnapshot(
+        ticker=args.ticker,
+        market=args.market,
+        sector_tag=args.sector_tag,
+        us_sector_proxy_symbol=args.proxy,
+        foreign_ownership_pct=args.foreign_pct,
+        foreign_ownership_taken_at=datetime.now(tz=KST).date() if args.foreign_pct is not None else None,
+        us_sector_corr_60d=args.sector_corr,
+        us_market_corr_60d=args.market_corr,
+        fx_corr_60d=args.fx_corr,
+        beta_to_kospi_60d=args.beta_kospi,
+        corr_taken_at=(
+            datetime.now(tz=KST).date()
+            if any(value is not None for value in [args.sector_corr, args.market_corr, args.fx_corr, args.beta_kospi])
+            else None
+        ),
+        manual_override=True,
+    )
+    if existing:
+        snapshot = existing.model_copy(
+            update={key: value for key, value in snapshot.model_dump().items() if value is not None}
+        )
+    store.upsert(snapshot)
+    return f"종목 민감도 저장 완료: {snapshot.ticker}"
+
+
+def run_sensitivity_list(config: AppConfig) -> str:
+    items = TickerSensitivityStore(config.db_path).list_all()
+    lines = ["종목 민감도"]
+    if not items:
+        lines.append("- 없음")
+    for item in items:
+        lines.append(
+            f"- {item.ticker} {item.sector_tag} proxy={item.us_sector_proxy_symbol or '-'} "
+            f"foreign={item.foreign_ownership_pct if item.foreign_ownership_pct is not None else '-'}% "
+            f"sector_corr={item.us_sector_corr_60d if item.us_sector_corr_60d is not None else '-'}"
+        )
+    return "\n".join(lines)
+
+
+def run_blackout_set(config: AppConfig, args: argparse.Namespace) -> str:
+    until = date.fromisoformat(args.until_date) if args.until_date else datetime.now(tz=KST).date() + timedelta(days=1)
+    reason = args.reason or "manual decision protection blackout"
+    WatchlistStore(config.db_path).set_blackout(args.ticker, until, reason)
+    return f"관찰 블랙아웃 설정 완료: {args.ticker.upper()} until={until.isoformat()}"
+
+
+def run_blackout_clear(config: AppConfig, ticker: str) -> str:
+    ok = WatchlistStore(config.db_path).clear_blackout(ticker)
+    return f"관찰 블랙아웃 해제 완료: {ticker.upper()}" if ok else f"관찰 블랙아웃 대상 없음: {ticker.upper()}"
+
+
+def run_conditional_add(config: AppConfig, args: argparse.Namespace) -> str:
+    if not args.condition:
+        raise SystemExit("--conditional-add requires --condition")
+    expires_at = (
+        datetime.combine(date.fromisoformat(args.until_date), datetime.max.time(), tzinfo=KST)
+        if args.until_date
+        else None
+    )
+    decision_id = ConditionalDecisionStore(config.db_path).add(
+        ConditionalDecision(
+            created_at=datetime.now(tz=KST),
+            ticker=args.ticker,
+            condition_text=args.condition,
+            planned_action=args.planned_action.upper(),
+            expires_at=expires_at,
+            note=args.reason,
+        )
+    )
+    return f"조건부 결정 저장 완료: #{decision_id} {args.ticker.upper()}"
+
+
+def run_conditional_list(config: AppConfig, ticker: str | None = None) -> str:
+    items = ConditionalDecisionStore(config.db_path).list_active(ticker=ticker, now=datetime.now(tz=KST))
+    lines = ["조건부 결정"]
+    if not items:
+        lines.append("- 없음")
+    for item in items:
+        expires = item.expires_at.date().isoformat() if item.expires_at else "-"
+        lines.append(f"- #{item.id or '-'} {item.ticker} {item.planned_action}: {item.condition_text} (expires={expires})")
     return "\n".join(lines)
 
 

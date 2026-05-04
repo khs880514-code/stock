@@ -542,3 +542,82 @@
 - Add `account_key` to `holdings` and `trades`.
 - Consider changing `holdings` primary key from `ticker` to `(account_key, ticker)` or introducing a new account-aware holdings table.
 - Keep all portfolio updates manual; do not add Toss/Kiwoom automatic sync.
+
+## 2026-05-04 Samsung/Hynix False-Block Prevention Rules
+
+### User Request
+
+- User said today's rules told them not to buy Samsung Electronics and SK Hynix and they felt roughly 10% opportunity loss.
+- User provided three specs:
+  - `RULE_POST_RUN_DECOMPOSITION_SPEC.md`
+  - `RULE_DECISION_PROTECTION_SPEC.md`
+  - `RULE_TICKER_SENSITIVITY_AND_HOLIDAY_GAP_SPEC.md`
+- Goal: prevent a future AI/rule engine from over-blocking explainable semiconductor moves, while still protecting against FOMO and regret chasing.
+
+### Assumptions / Ambiguity Check
+
+- `CLAUDE.md` was requested by the spec but not found under `F:\codex` or the project folder, so the active `AGENTS.md` harness was used.
+- The user previously asked to leave API connection work for tomorrow, so this step did not add credentialed live API connections.
+- Naver foreign ownership crawling, DART automation, and live yfinance correlation refresh are left as API/provider work.
+- The current implementation uses manual or cached local DB data for sensitivity, price, news, and market proxies.
+
+### Implemented
+
+- Added `ticker_sensitivity` and `foreign_ownership_history` schema.
+- Added `app/data/ticker_sensitivity.py`.
+- Added `app/rules/holiday_gap_setup.py`.
+  - High-risk example covered: Hynix-like foreign ownership 53%, US sector correlation 0.78, US accumulated gain 2% over a 3-day domestic gap => high severity, 70% cap.
+  - Low-risk example covered: low foreign ownership and low US sector correlation => no cap.
+- Added `app/rules/post_run_decomposition.py`.
+  - Decomposes recent runs into KOSPI beta, US sector relative move, and news-explained return.
+  - Caps only the unexplained residual run-up.
+- Added `app/rules/post_run_news_mapping.py`.
+  - Conservative keyword mapping for earnings surprise, policy, large contract, deregulation, competitor bad news, analyst target upgrade.
+- Added `app/rules/decision_protection.py`.
+  - Observation blackout lookup and suggestion.
+  - Regret-chase detection from buy-check logs and latest cached price.
+- Added `buy_check_log` and `conditional_decisions` schema.
+- Added `app/data/buy_check_log.py`.
+- Added `app/data/conditional_orders.py`.
+- Extended `watchlist` with `do_not_watch_until`, `blackout_reason`, and `blackout_set_at`.
+- Integrated new contexts into `AlertDecision`:
+  - `ticker_sensitivity_used`
+  - `holiday_gap_signal`
+  - `relative_weakness_signal`
+  - `post_run_decomposition`
+  - `blackout_suggested`
+  - `regret_pattern`
+- Integrated new rules into `review_buy_request`.
+  - Active blackout blocks a buy-check and hides price-based rule details.
+  - Holiday gap and post-run decomposition adjust max buy amount by cap ratio instead of blindly blocking.
+  - Regret-chase pattern blocks a new buy-check when a recent NO_TRADE/WATCH was followed by a large price jump.
+- Added buy-check logging from CLI and web UI.
+- Added CLI:
+  - `--sensitivity-set`
+  - `--sensitivity-list`
+  - `--blackout-set`
+  - `--blackout-clear`
+  - `--conditional-add`
+  - `--conditional-list`
+- Added web UI panels:
+  - `종목 민감도 / 연휴 갭`
+  - `결정 보호`
+  - sensitivity form/table
+  - blackout form
+  - conditional decision form/table
+- Updated decision messages to show sensitivity, holiday gap, relative weakness, post-run decomposition, regret chase, and blackout suggestion context.
+
+### Operating Rule
+
+- These three new rules must not turn every missed rally into permission to chase.
+- They exist to separate:
+  - explainable market/sector/news repricing,
+  - unexplained momentum chasing,
+  - and user regret after a previous no-trade decision.
+- If sensitivity/news/market data is missing, the system marks completeness as partial instead of pretending the signal is complete.
+
+### Verification
+
+- `py -3 -m compileall -q app` passed.
+- New focused tests passed: `py -3 -m pytest tests\rules\test_holiday_gap_setup.py tests\rules\test_post_run_decomposition.py tests\rules\test_decision_protection.py tests\test_ticker_sensitivity_store.py -p no:cacheprovider` passed 11 tests.
+- Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 73 tests.

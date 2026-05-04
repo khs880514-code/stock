@@ -86,6 +86,15 @@ class TradeJournal:
         if decision and decision.post_drop_context and decision.post_drop_context.triggered:
             rule_id = rule_id or "post_drop_chase"
             severity = severity or decision.post_drop_context.severity
+        if decision and decision.holiday_gap_signal and decision.holiday_gap_signal.triggered:
+            rule_id = rule_id or "holiday_gap_setup"
+            severity = severity or decision.holiday_gap_signal.severity
+        if decision and decision.post_run_decomposition and decision.post_run_decomposition.triggered:
+            rule_id = rule_id or "post_run_decomposition"
+            severity = severity or decision.post_run_decomposition.severity
+        if decision and decision.regret_pattern and decision.regret_pattern.triggered:
+            rule_id = rule_id or "decision_protection"
+            severity = severity or "high"
         with connect(self.db_path) as conn:
             cursor = conn.execute(
                 """

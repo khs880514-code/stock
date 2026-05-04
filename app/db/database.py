@@ -23,6 +23,9 @@ def init_db(db_path: Path | str) -> None:
         _ensure_column(conn, "earnings_calendar_history", "note", "TEXT NOT NULL DEFAULT ''")
         _ensure_column(conn, "external_research_notes", "counter_points", "TEXT NOT NULL DEFAULT ''")
         _ensure_column(conn, "external_research_notes", "check_questions", "TEXT NOT NULL DEFAULT ''")
+        _ensure_column(conn, "watchlist", "do_not_watch_until", "TEXT")
+        _ensure_column(conn, "watchlist", "blackout_reason", "TEXT")
+        _ensure_column(conn, "watchlist", "blackout_set_at", "TEXT")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
