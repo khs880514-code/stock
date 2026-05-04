@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from app.config import AppConfig
+from app.data.market_calendar import status_for_ticker
 from app.data.news_store import NewsStore
 from app.data.price_history import PriceHistoryStore
 from app.data.ticker_sensitivity import TickerSensitivityStore
@@ -62,6 +63,12 @@ def review_buy_request(
     watch_item = _safe_watch_item(config, request.ticker)
     blackout = active_blackout(watch_item, now.date())
     blackout_active = bool(blackout and blackout.active)
+    market_status = status_for_ticker(request.ticker, request.market, now.date())
+    if not market_status.is_open:
+        blockers.append(
+            f"market_calendar: {market_status.market} market closed on {market_status.session_date}"
+            f" ({market_status.reason}); next open {market_status.next_open_date}"
+        )
 
     if "market" in request.price_type.lower() or "시장가" in request.price_type:
         blockers.append("시장가 방식 입력은 차단")
@@ -317,6 +324,8 @@ def _same_ticker_trade_within(
 
 
 def _next_check(blockers: list[str]) -> str:
+    if any("market_calendar" in blocker for blocker in blockers):
+        return "다음 개장일에 같은 조건으로 다시 검토"
     if any("실적" in blocker for blocker in blockers):
         return "실적 발표 후 가격과 가이던스 반응 확인"
     if any("FOMO" in blocker or "과신" in blocker or "불일치" in blocker for blocker in blockers):

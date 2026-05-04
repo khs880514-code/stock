@@ -23,6 +23,30 @@ DEFAULT_SECTOR_PROXY = {
 }
 
 
+DEFAULT_KR_SEMICONDUCTOR_SENSITIVITY = {
+    "005930.KS": TickerSensitivitySnapshot(
+        ticker="005930.KS",
+        market="KR",
+        sector_tag="AI_SEMICONDUCTOR",
+        us_sector_proxy_symbol="SMH",
+        foreign_ownership_pct=55.0,
+        us_sector_corr_60d=0.65,
+        beta_to_kospi_60d=1.0,
+        manual_override=True,
+    ),
+    "000660.KS": TickerSensitivitySnapshot(
+        ticker="000660.KS",
+        market="KR",
+        sector_tag="AI_SEMICONDUCTOR",
+        us_sector_proxy_symbol="SMH",
+        foreign_ownership_pct=53.0,
+        us_sector_corr_60d=0.78,
+        beta_to_kospi_60d=1.2,
+        manual_override=True,
+    ),
+}
+
+
 @dataclass(frozen=True)
 class ForeignOwnershipPoint:
     ticker: str
@@ -138,6 +162,19 @@ class TickerSensitivityStore:
                 """,
                 (normalized, observed_at.isoformat(), foreign_ownership_pct, source),
             )
+
+    def seed_kr_semiconductor_defaults(self, observed_at: date) -> int:
+        count = 0
+        for snapshot in DEFAULT_KR_SEMICONDUCTOR_SENSITIVITY.values():
+            dated = snapshot.model_copy(
+                update={
+                    "foreign_ownership_taken_at": observed_at,
+                    "corr_taken_at": observed_at,
+                }
+            )
+            self.upsert(dated)
+            count += 1
+        return count
 
 
 def is_foreign_stale(snapshot: TickerSensitivitySnapshot, today: date, max_age_days: int = 3) -> bool:

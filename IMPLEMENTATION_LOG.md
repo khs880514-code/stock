@@ -621,3 +621,39 @@
 - `py -3 -m compileall -q app` passed.
 - New focused tests passed: `py -3 -m pytest tests\rules\test_holiday_gap_setup.py tests\rules\test_post_run_decomposition.py tests\rules\test_decision_protection.py tests\test_ticker_sensitivity_store.py -p no:cacheprovider` passed 11 tests.
 - Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 73 tests.
+
+## 2026-05-04 KR Holiday Guard and Semiconductor Defaults
+
+### User Request
+
+- User asked to continue after the Samsung Electronics / SK Hynix rule simulation.
+- The simulation showed a gap: May 5, 2026 is a Korean market holiday, but buy-check did not clearly separate "market closed" from investment risk.
+
+### Implemented
+
+- Added `app/data/market_calendar.py`.
+- Added KRX 2026 holiday guard for buy-check.
+- KR tickers ending in `.KS` or `.KQ` are treated as Korean market tickers even if the request market is omitted.
+- If a KR buy-check is run on a KRX holiday or weekend, the result is operational `NO_TRADE` with a next-open-date note.
+- Added CLI seed:
+  - `py -3 -m app.main --seed-kr-semiconductor-sensitivity`
+- Added web UI button:
+  - `삼성전자/하이닉스 기본 민감도 저장`
+- Added Samsung Electronics and SK Hynix default sensitivity assumptions:
+  - `005930.KS`: SMH proxy, foreign ownership 55%, sector correlation 0.65, KOSPI beta 1.0
+  - `000660.KS`: SMH proxy, foreign ownership 53%, sector correlation 0.78, KOSPI beta 1.2
+
+### Operating Rule
+
+- Market-closed `NO_TRADE` is not a bearish signal.
+- It only means the rule engine should not present the result as an actionable same-day trade.
+- On the next open date, run buy-check again with updated price/news/foreign-ownership data.
+
+### Verification
+
+- Added focused tests for KRX Children's Day closure and KR buy-check holiday blocking.
+- Added test for Samsung/Hynix default sensitivity seeding.
+- Focused tests passed: `py -3 -m pytest tests\test_market_calendar.py tests\test_ticker_sensitivity_store.py tests\test_buy_check_mode.py tests\test_web_ui.py -p no:cacheprovider` passed 12 tests.
+- Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 76 tests.
+- Seeded the current local DB with Samsung Electronics and SK Hynix default sensitivity rows.
+- Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 confirmed and the page contains the seed button plus `005930.KS` / `000660.KS`.

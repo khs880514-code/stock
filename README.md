@@ -148,6 +148,7 @@ set SEF_SEC_USER_AGENT=StockExpertFriend/1.0 your-email@example.com
 
 ```bash
 py -3 -m app.main --sensitivity-set --ticker 000660.KS --market KR --sector-tag AI_SEMICONDUCTOR --proxy SMH --foreign-pct 53 --sector-corr 0.78 --beta-kospi 1.2
+py -3 -m app.main --seed-kr-semiconductor-sensitivity
 py -3 -m app.main --sensitivity-list
 ```
 
@@ -159,6 +160,8 @@ py -3 -m app.main --conditional-add --ticker 005930.KS --condition "외국인 �
 ```
 
 아직 자동 API 연결은 추가하지 않았습니다. 외국인 지분율, 섹터 상관, 미국 프록시 데이터는 오늘 단계에서 수동/캐시 기반이며, 실시간 DART/Naver/yfinance 자동 갱신은 API 연결 작업으로 남겨두었습니다.
+
+한국 종목은 KRX 휴장일이면 투자 판단과 별개로 buy-check가 운영상 `NO_TRADE`를 냅니다. 예를 들어 2026-05-05 어린이날은 휴장으로 처리하고 다음 개장일 재검토를 안내합니다.
 
 ## Backtest Harness
 

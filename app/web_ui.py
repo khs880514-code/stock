@@ -142,6 +142,12 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
         )
         return f"종목 민감도 저장 완료: {form.get('ticker', '').upper()}", ""
 
+    if path == "/seed-kr-semiconductor-sensitivity":
+        count = TickerSensitivityStore(config.db_path).seed_kr_semiconductor_defaults(
+            observed_at=datetime.now(tz=KST).date()
+        )
+        return f"국내 반도체 기본 민감도 저장 완료: {count}개", ""
+
     if path == "/blackout":
         until = date.fromisoformat(form.get("until_date", "")) if form.get("until_date") else datetime.now(tz=KST).date() + timedelta(days=1)
         WatchlistStore(config.db_path).set_blackout(
@@ -465,14 +471,19 @@ def _watch_form() -> str:
 
 
 def _sensitivity_form() -> str:
-    return """<form method="post" action="/sensitivity">
+    return """<div class="stacked-forms">
+<form method="post" action="/seed-kr-semiconductor-sensitivity">
+  <button>삼성전자/하이닉스 기본 민감도 저장</button>
+</form>
+<form method="post" action="/sensitivity">
   <label>종목<input name="ticker" value="005930.KS" required></label>
   <div class="row"><label>시장<select name="market"><option>KR</option><option>US</option></select></label><label>섹터 태그<input name="sector_tag" value="AI_SEMICONDUCTOR"></label></div>
   <div class="row"><label>미국 프록시<input name="proxy" value="SMH"></label><label>외국인 지분 %<input name="foreign_pct" type="number" step="0.01" placeholder="53.0"></label></div>
   <div class="row"><label>미국 섹터 상관<input name="sector_corr" type="number" step="0.01" placeholder="0.78"></label><label>KOSPI 베타<input name="beta_kospi" type="number" step="0.01" placeholder="1.00"></label></div>
   <div class="row"><label>미국 시장 상관<input name="market_corr" type="number" step="0.01"></label><label>환율 상관<input name="fx_corr" type="number" step="0.01"></label></div>
   <button>민감도 저장</button>
-</form>"""
+</form>
+</div>"""
 
 
 def _sensitivity_table(items) -> str:

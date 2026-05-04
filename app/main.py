@@ -81,6 +81,7 @@ def main() -> None:
     parser.add_argument("--priority", type=int, default=3)
     parser.add_argument("--sensitivity-set", action="store_true", help="Add or update ticker sensitivity.")
     parser.add_argument("--sensitivity-list", action="store_true", help="List ticker sensitivity snapshots.")
+    parser.add_argument("--seed-kr-semiconductor-sensitivity", action="store_true", help="Seed Samsung Electronics and SK Hynix sensitivity defaults.")
     parser.add_argument("--foreign-pct", type=float, default=None)
     parser.add_argument("--sector-corr", type=float, default=None)
     parser.add_argument("--market-corr", type=float, default=None)
@@ -158,6 +159,10 @@ def main() -> None:
 
     if args.sensitivity_list:
         print(run_sensitivity_list(config))
+        return
+
+    if args.seed_kr_semiconductor_sensitivity:
+        print(run_seed_kr_semiconductor_sensitivity(config))
         return
 
     if args.blackout_set:
@@ -480,6 +485,13 @@ def run_sensitivity_list(config: AppConfig) -> str:
             f"sector_corr={item.us_sector_corr_60d if item.us_sector_corr_60d is not None else '-'}"
         )
     return "\n".join(lines)
+
+
+def run_seed_kr_semiconductor_sensitivity(config: AppConfig) -> str:
+    count = TickerSensitivityStore(config.db_path).seed_kr_semiconductor_defaults(
+        observed_at=datetime.now(tz=KST).date()
+    )
+    return f"국내 반도체 기본 민감도 저장 완료: {count}개 (005930.KS, 000660.KS)"
 
 
 def run_blackout_set(config: AppConfig, args: argparse.Namespace) -> str:
