@@ -1,5 +1,58 @@
 # Stock Expert Friend v1 Implementation Log
 
+## 2026-05-05 Inventory-Web Split Lesson Applied
+
+### Background
+
+- User asked whether this app was starting to repeat the inventory-management app's old problem: too many features in one file.
+- Recent inventory-web improvement history showed the useful pattern:
+  - keep the top-level app file as route/shell orchestration,
+  - move feature-specific panels/helpers into feature modules,
+  - split large inline style blocks,
+  - add verification so the split does not silently break screens.
+
+### Cause
+
+- `app/web_ui.py` had grown to about 1100 lines after account, research, market-info, and candidate-screener features were added.
+- `app/main.py` was also large enough to watch, but not yet as urgent as the web UI container.
+
+### Change
+
+- Split candidate-screener web behavior into `app/web/fundamental_screener.py`.
+- Split inline web CSS into `app/web/styles.py`.
+- Added functional dashboard tabs through `app/web/tabs.py`:
+  - dashboard,
+  - candidate/info,
+  - buy review,
+  - portfolio,
+  - research,
+  - journal.
+- Left `app/web_ui.py` responsible for request routing, page assembly, and shared dashboard panels.
+- Added `tests/test_file_size_guard.py`:
+  - `app/web_ui.py` must stay under 1100 lines.
+  - `app/main.py` must stay under 750 lines.
+  - individual `app/web/*.py` feature modules must stay under 350 lines.
+
+### Operating Rule
+
+- Do not add a new feature directly into `app/web_ui.py` unless it is only a small orchestration hook.
+- New web feature panels should live under `app/web/`.
+- Long dashboard sections should be assigned to a functional tab rather than appended to the bottom of the page.
+- If a feature module approaches the guard limit, split panel, form, and data-prep helpers before adding more behavior.
+- Before adding another large CLI feature, split `app/main.py` into command modules.
+
+### Verification
+
+- Initial file-size guard correctly failed when the ceiling was too low for the current state.
+- The guard was adjusted to a current-state ceiling that still prevents additional unchecked growth.
+- Focused tests passed after tab work: `py -3 -m pytest tests\test_file_size_guard.py tests\test_fundamentals_screener.py tests\test_web_ui.py -q -p no:cacheprovider` passed 6 tests.
+- Full regression passed after tab work: `py -3 -m pytest -p no:cacheprovider` passed 81 tests.
+- Restarted local UI at `http://127.0.0.1:8770`.
+- Browser smoke passed: 6 tab buttons rendered, `후보/정보` tab selected, and `Candidate Screener` became visible.
+- Current largest files after split:
+  - `app/web_ui.py`: 945 lines.
+  - `app/main.py`: 623 lines.
+
 ## 2026-05-03
 
 ### Initial Scope

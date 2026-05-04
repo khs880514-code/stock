@@ -14,7 +14,6 @@ from app.data.conditional_orders import ConditionalDecisionStore
 from app.data.data_status import build_api_readiness_status, build_ticker_data_status
 from app.data.earnings_calendar_store import EarningsCalendarStore, EarningsDate
 from app.data.filings_collector import FilingStore, SecFilingsCollector
-from app.data.fundamentals_store import FundamentalSnapshot, FundamentalsStore
 from app.data.news_store import GoogleNewsRssCollector, NewsStore
 from app.data.price_history import PriceHistoryStore
 from app.data.portfolio_store import PortfolioStore
@@ -24,9 +23,11 @@ from app.data.watchlist_store import WatchlistStore
 from app.db.database import init_db
 from app.engines.buy_check_mode import review_buy_request
 from app.engines.news_flags import classify_headline, summarize_news_flags
-from app.engines.stock_screener import screen
 from app.journal.trade_journal import TradeJournal
 from app.models import BuyReviewRequest, ConditionalDecision, Holding, MistakeType, TickerSensitivitySnapshot, TradeEntry
+from app.web.fundamental_screener import build_screener_context, handle_fundamental_post, render_screener_panel
+from app.web.styles import CSS
+from app.web.tabs import render_tab_nav, render_tab_script
 
 
 KST = ZoneInfo("Asia/Seoul")
@@ -285,40 +286,7 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
         return f"실적 일정 저장 완료: {ticker} {earnings_date.isoformat()}", ""
 
     if path == "/fundamental":
-        as_of = date.fromisoformat(form["as_of_date"]) if form.get("as_of_date") else datetime.now(tz=KST).date()
-        snapshot = FundamentalSnapshot(
-            ticker=form.get("ticker", ""),
-            market=form.get("market", "KR"),
-            company_name=form.get("company_name", ""),
-            sector_tag=form.get("sector_tag", "UNKNOWN"),
-            as_of_date=as_of,
-            currency=form.get("currency", "KRW"),
-            market_cap_krw=_optional_float(form, "market_cap_krw"),
-            per=_optional_float(form, "per"),
-            forward_per=_optional_float(form, "forward_per"),
-            pbr=_optional_float(form, "pbr"),
-            psr=_optional_float(form, "psr"),
-            ev_ebitda=_optional_float(form, "ev_ebitda"),
-            dividend_yield_pct=_optional_float(form, "dividend_yield_pct"),
-            roe_pct=_optional_float(form, "roe_pct"),
-            roa_pct=_optional_float(form, "roa_pct"),
-            roic_pct=_optional_float(form, "roic_pct"),
-            operating_margin_pct=_optional_float(form, "operating_margin_pct"),
-            net_margin_pct=_optional_float(form, "net_margin_pct"),
-            revenue_growth_pct=_optional_float(form, "revenue_growth_pct"),
-            eps_growth_pct=_optional_float(form, "eps_growth_pct"),
-            operating_income_growth_pct=_optional_float(form, "operating_income_growth_pct"),
-            debt_to_equity_pct=_optional_float(form, "debt_to_equity_pct"),
-            current_ratio=_optional_float(form, "current_ratio"),
-            interest_coverage=_optional_float(form, "interest_coverage"),
-            fcf_yield_pct=_optional_float(form, "fcf_yield_pct"),
-            price_momentum_3m_pct=_optional_float(form, "price_momentum_3m_pct"),
-            price_momentum_12m_pct=_optional_float(form, "price_momentum_12m_pct"),
-            source=form.get("source", "manual"),
-            notes=form.get("notes", ""),
-        )
-        FundamentalsStore(config.db_path).upsert(snapshot)
-        return f"후보 재무지표 저장 완료: {snapshot.ticker.upper()}", ""
+        return handle_fundamental_post(config, form), ""
 
     if path == "/research-note":
         note_id = ResearchNotesStore(config.db_path).add(
@@ -349,9 +317,7 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
     conditional_items = ConditionalDecisionStore(config.db_path).list_active(now=datetime.now(tz=KST))
     latest_news = NewsStore(config.db_path).latest(limit=12)
     latest_filings = FilingStore(config.db_path).latest(limit=12)
-    fundamentals = FundamentalsStore(config.db_path).list_all()
-    screener_candidates = screen(fundamentals)
-    candidate_context = _candidate_context_counts(config, screener_candidates)
+    screener_candidates, candidate_context = build_screener_context(config)
     upcoming_earnings = EarningsCalendarStore(config.db_path).upcoming(
         tracked_tickers,
         datetime.now(tz=KST).date(),
@@ -384,7 +350,8 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
   </header>
   <main>
     {_notice(notice)}
-    <section class="metrics">
+    {render_tab_nav()}
+    <section class="metrics tab-panel" data-tab-panel="overview">
       {_metric("총 평가액", f"{portfolio.total_value_krw:,}원")}
       {_metric("현금", f"{portfolio.cash_krw:,}원 ({cash_pct:.1f}%)")}
       {_metric("보유 평가액", f"{holdings_value:,}원")}
@@ -413,7 +380,7 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
     </section>
     <section>
       <h2>후보 발굴 / Candidate Screener</h2>
-      {_screener_panel(screener_candidates, candidate_context)}
+      {render_screener_panel(screener_candidates, candidate_context)}
     </section>
     <section>
       <h2>데이터 상태</h2>
@@ -483,22 +450,9 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
       {_trades_table(trades)}
     </section>
   </main>
+  {render_tab_script()}
 </body>
 </html>"""
-
-
-def _candidate_context_counts(config: AppConfig, candidates) -> dict[str, dict[str, int]]:
-    news_store = NewsStore(config.db_path)
-    filing_store = FilingStore(config.db_path)
-    research_store = ResearchNotesStore(config.db_path)
-    counts: dict[str, dict[str, int]] = {}
-    for item in candidates:
-        counts[item.ticker] = {
-            "news": len(news_store.latest(item.ticker, limit=5)),
-            "filings": len(filing_store.latest(item.ticker, limit=5)),
-            "research": len(research_store.latest(item.ticker, limit=5)),
-        }
-    return counts
 
 
 def _cash_form(cash: int) -> str:
@@ -662,66 +616,6 @@ def _research_form() -> str:
   <label>확인질문<textarea name="check_questions" placeholder="매수 전 직접 확인할 질문"></textarea></label>
   <button>리서치 노트 저장</button>
 </form>"""
-
-
-def _screener_panel(candidates, candidate_context: dict[str, dict[str, int]]) -> str:
-    return f"""<div class="grid two">
-  <div>
-    <h3>재무지표 입력</h3>
-    {_fundamental_form()}
-  </div>
-  <div>
-    <h3>필터 결과</h3>
-    <p class="form-note">PASS는 매수 지시가 아니라 추가 검토 후보입니다. 데이터가 부족하면 WATCH로 남기고, 뉴스/공시/리서치 근거를 옆에 붙입니다.</p>
-    {_candidate_table(candidates, candidate_context)}
-  </div>
-</div>"""
-
-
-def _fundamental_form() -> str:
-    return """<form method="post" action="/fundamental">
-  <label>종목<input name="ticker" value="005930.KS" required></label>
-  <div class="row"><label>시장<select name="market"><option>KR</option><option>US</option></select></label><label>통화<select name="currency"><option>KRW</option><option>USD</option></select></label></div>
-  <div class="row"><label>회사명<input name="company_name" value="삼성전자"></label><label>섹터 태그<input name="sector_tag" value="AI_SEMICONDUCTOR"></label></div>
-  <div class="row"><label>기준일<input name="as_of_date" type="date"></label><label>출처<input name="source" value="manual"></label></div>
-  <div class="row"><label>시가총액 KRW<input name="market_cap_krw" type="number" step="1"></label><label>PER<input name="per" type="number" step="0.01"></label></div>
-  <div class="row"><label>Forward PER<input name="forward_per" type="number" step="0.01"></label><label>PBR<input name="pbr" type="number" step="0.01"></label></div>
-  <div class="row"><label>PSR<input name="psr" type="number" step="0.01"></label><label>EV/EBITDA<input name="ev_ebitda" type="number" step="0.01"></label></div>
-  <div class="row"><label>배당수익률 %<input name="dividend_yield_pct" type="number" step="0.01"></label><label>ROE %<input name="roe_pct" type="number" step="0.01"></label></div>
-  <div class="row"><label>ROA %<input name="roa_pct" type="number" step="0.01"></label><label>ROIC %<input name="roic_pct" type="number" step="0.01"></label></div>
-  <div class="row"><label>영업이익률 %<input name="operating_margin_pct" type="number" step="0.01"></label><label>순이익률 %<input name="net_margin_pct" type="number" step="0.01"></label></div>
-  <div class="row"><label>매출 성장률 %<input name="revenue_growth_pct" type="number" step="0.01"></label><label>EPS 성장률 %<input name="eps_growth_pct" type="number" step="0.01"></label></div>
-  <div class="row"><label>영업이익 성장률 %<input name="operating_income_growth_pct" type="number" step="0.01"></label><label>부채비율 %<input name="debt_to_equity_pct" type="number" step="0.01"></label></div>
-  <div class="row"><label>유동비율<input name="current_ratio" type="number" step="0.01"></label><label>이자보상배율<input name="interest_coverage" type="number" step="0.01"></label></div>
-  <div class="row"><label>FCF Yield %<input name="fcf_yield_pct" type="number" step="0.01"></label><label>3M 모멘텀 %<input name="price_momentum_3m_pct" type="number" step="0.01"></label></div>
-  <div class="row"><label>12M 모멘텀 %<input name="price_momentum_12m_pct" type="number" step="0.01"></label><label>메모<input name="notes" placeholder="확인한 출처/주의점"></label></div>
-  <button>재무지표 저장</button>
-</form>"""
-
-
-def _candidate_table(candidates, candidate_context: dict[str, dict[str, int]]) -> str:
-    if not candidates:
-        return '<p class="empty">저장된 재무지표가 없습니다. 왼쪽에서 후보 종목 지표를 먼저 입력하세요.</p>'
-    rows = "".join(
-        _candidate_row(item, candidate_context.get(item.ticker, {"news": 0, "filings": 0, "research": 0}))
-        for item in candidates
-    )
-    return (
-        "<table><thead><tr><th>상태</th><th>종목</th><th>점수</th><th>근거</th><th>주의/부족</th><th>연결 정보</th></tr></thead>"
-        f"<tbody>{rows}</tbody></table>"
-    )
-
-
-def _candidate_row(item, context: dict[str, int]) -> str:
-    reasons = "<br>".join(_e(reason) for reason in item.reasons[:3]) or "-"
-    cautions = "<br>".join(_e(caution) for caution in item.cautions[:2])
-    missing = ", ".join(item.missing_metrics[:5])
-    caution_text = "<br>".join(part for part in [cautions, _e(f"부족: {missing}") if missing else ""] if part) or "-"
-    linked = f"뉴스 {context['news']} / 공시 {context['filings']} / 리서치 {context['research']}"
-    return (
-        f"<tr><td><b>{_e(item.status)}</b></td><td>{_e(item.ticker)}<br><span>{_e(item.company_name or item.sector_tag)}</span></td>"
-        f"<td>{item.score}<br><span>data {item.data_points}</span></td><td>{reasons}</td><td>{caution_text}</td><td>{_e(linked)}</td></tr>"
-    )
 
 
 def _trade_form() -> str:
@@ -1020,7 +914,7 @@ def _notice(text: str) -> str:
 
 def _decision(text: str) -> str:
     return (
-        f"""<section>
+        f"""<section class="tab-panel" data-tab-panel="buy-review">
   <h2>검토 결과</h2>
   <pre>{_e(text)}</pre>
   <div class="result-note">
@@ -1175,65 +1069,3 @@ def _latest_prices(config: AppConfig, holdings, watch_items) -> list[dict[str, o
 
 def _e(value: object) -> str:
     return html.escape(str(value), quote=True)
-
-
-CSS = """
-:root { color-scheme: light; font-family: Arial, sans-serif; background: #f4f6f8; color: #111827; }
-* { box-sizing: border-box; }
-body { margin: 0; }
-header { background: #111827; color: white; padding: 24px; }
-header h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: 0; }
-header p { margin: 0; color: #d1d5db; line-height: 1.55; max-width: 920px; }
-main { padding: 20px; max-width: 1280px; margin: 0 auto; }
-section, .grid > div { background: white; border: 1px solid #d9dee7; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-h2 { margin: 0 0 12px; font-size: 18px; }
-.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; background: transparent; border: 0; padding: 0; }
-.metric { background: white; border: 1px solid #d9dee7; border-radius: 8px; padding: 14px; min-height: 80px; }
-.metric span { display: block; color: #6b7280; font-size: 13px; margin-bottom: 8px; }
-.metric strong { font-size: 20px; line-height: 1.25; overflow-wrap: anywhere; }
-.grid { display: grid; gap: 16px; }
-.grid.two { grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); }
-.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.score-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, .8fr); gap: 14px; align-items: start; }
-.score-guide { border: 1px solid #d9dee7; background: #f9fafb; border-radius: 8px; padding: 12px; }
-.score-guide.compact { margin-top: 12px; }
-.score-guide h3 { margin: 0 0 10px; font-size: 15px; }
-.guide-block { margin-bottom: 10px; }
-.guide-block strong { display: block; margin-bottom: 5px; font-size: 13px; color: #1f2937; }
-.score-guide ul { margin: 0; padding-left: 18px; color: #374151; font-size: 12px; line-height: 1.45; }
-.score-guide p { margin: 10px 0 0; color: #4b5563; font-size: 12px; line-height: 1.45; }
-.rule-context { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 14px; }
-.rule-context h3 { margin: 0 0 8px; font-size: 15px; }
-.rule-context ol { margin: 0; padding-left: 20px; color: #374151; font-size: 13px; line-height: 1.55; }
-.rule-reference table td:first-child { width: 190px; font-weight: 700; color: #1f2937; }
-.recent-info { display: grid; grid-template-columns: .7fr .9fr 1.2fr 1.2fr; gap: 14px; }
-.recent-info h3 { margin: 0 0 8px; font-size: 15px; }
-.recent-info p { margin: 10px 0 0; color: #4b5563; font-size: 13px; line-height: 1.5; }
-.data-status { display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; }
-.data-status h3 { margin: 0 0 8px; font-size: 15px; }
-.account-panel { display: grid; grid-template-columns: .75fr .9fr 1.35fr; gap: 14px; }
-.account-panel p { margin: 10px 0 0; color: #4b5563; font-size: 13px; line-height: 1.5; }
-.button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.news-list { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 13px; line-height: 1.45; }
-.news-list a { color: #1d4ed8; text-decoration: none; }
-.news-list span { display: block; color: #6b7280; font-size: 12px; margin-top: 2px; }
-.news-list .news-flags { color: #92400e; font-weight: 700; }
-.result-note { margin-top: 10px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a; border-radius: 8px; padding: 12px; line-height: 1.5; font-size: 13px; }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th, td { text-align: left; border-bottom: 1px solid #e5e7eb; padding: 9px 8px; vertical-align: top; }
-th { color: #4b5563; font-weight: 700; background: #f9fafb; }
-form { display: grid; gap: 10px; }
-label { display: grid; gap: 5px; color: #374151; font-size: 13px; }
-input, select, textarea { width: 100%; min-height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 9px; font: inherit; }
-textarea { min-height: 72px; resize: vertical; }
-button { min-height: 38px; border: 0; border-radius: 6px; background: #2563eb; color: white; font-weight: 700; cursor: pointer; }
-.form-note { margin: -2px 0 0; color: #6b7280; font-size: 12px; line-height: 1.45; }
-.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.notice { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
-.empty { color: #6b7280; margin: 0; }
-pre { white-space: pre-wrap; background: #0f172a; color: #e5e7eb; padding: 14px; border-radius: 8px; overflow-x: auto; line-height: 1.5; }
-@media (max-width: 900px) {
-  main { padding: 12px; }
-  .metrics, .grid.two, .grid.three, .score-layout, .rule-context, .recent-info, .data-status, .account-panel { grid-template-columns: 1fr; }
-}
-"""

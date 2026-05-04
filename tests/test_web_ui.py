@@ -20,6 +20,10 @@ def test_web_dashboard_renders_portfolio(tmp_path):
     )
     html = render_dashboard(config)
     assert "Stock Expert Friend" in html
+    assert 'data-tab-target="overview"' in html
+    assert 'data-tab-target="buy-review"' in html
+    assert 'data-tab-target="portfolio"' in html
+    assert 'data-tab-target="research-funnel"' in html
     assert "AAPL" in html
     assert "매수 검토" in html
     assert "점수 입력 기준" in html
