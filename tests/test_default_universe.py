@@ -17,11 +17,15 @@ def test_seed_user_default_universe_adds_holdings_watchlist_and_candidates(tmp_p
 
     result = seed_user_default_universe(config, today=date(2026, 5, 5))
 
-    assert result.holdings_added == 4
-    assert {"QQQ", "SMH", "AAPL", "AMD"} <= {
-        item.ticker for item in PortfolioStore(config.db_path, config).load_holdings()
-    }
-    assert {"005930.KS", "000660.KS", "263750.KQ", "QQQ", "SMH", "AAPL", "AMD"} <= {
+    assert result.cash_updated is True
+    assert result.holdings_added == 5
+    portfolio = PortfolioStore(config.db_path, config)
+    holdings = {item.ticker: item for item in portfolio.load_holdings()}
+    assert {"QQQ", "SMH", "AAPL", "AMD", "MVST"} <= set(holdings)
+    assert portfolio.get_cash() == 29_000_000
+    assert holdings["AAPL"].quantity == 11
+    assert holdings["QQQ"].account_key == "ISA_KIWOOM"
+    assert {"005930.KS", "000660.KS", "263750.KQ", "QQQ", "SMH", "AAPL", "AMD", "MVST"} <= {
         item.ticker for item in WatchlistStore(config.db_path).list_items()
     }
     candidates = screen(FundamentalsStore(config.db_path).list_all())
@@ -32,6 +36,7 @@ def test_seed_user_default_universe_adds_holdings_watchlist_and_candidates(tmp_p
 def test_seed_user_default_universe_does_not_overwrite_existing_user_data(tmp_path):
     config = AppConfig(db_path=tmp_path / "seed-existing.sqlite3")
     portfolio = PortfolioStore(config.db_path, config)
+    portfolio.set_cash(12_345_678)
     portfolio.save_holding(
         Holding(
             ticker="AAPL",
@@ -51,7 +56,9 @@ def test_seed_user_default_universe_does_not_overwrite_existing_user_data(tmp_pa
 
     seed_user_default_universe(config, today=date(2026, 5, 5))
 
-    assert PortfolioStore(config.db_path, config).load_holdings()[0].quantity == 7
+    saved_portfolio = PortfolioStore(config.db_path, config)
+    assert saved_portfolio.get_cash() == 12_345_678
+    assert saved_portfolio.load_holdings()[0].quantity == 7
     saved = FundamentalsStore(config.db_path).get("005930.KS")
     assert saved is not None
     assert saved.per == 99.0

@@ -13,11 +13,13 @@ from app.models import Holding
 
 SEED_SOURCE = "seed:test-universe"
 SEED_NOTE = "Synthetic test seed for screener verification; not a recommendation."
+DEFAULT_CASH_KRW = 29_000_000
 
 
 @dataclass(frozen=True)
 class SeedUniverseResult:
     accounts_added: int
+    cash_updated: bool
     holdings_added: int
     watchlist_added: int
     fundamentals_added: int
@@ -26,11 +28,13 @@ class SeedUniverseResult:
 def seed_user_default_universe(config: AppConfig, today: date | None = None) -> SeedUniverseResult:
     today = today or date.today()
     account_count = _seed_accounts(config)
+    cash_updated = _seed_cash(config)
     holding_count = _seed_holdings(config)
     watch_count = _seed_watchlist(config)
     fundamental_count = _seed_fundamentals(config, today)
     return SeedUniverseResult(
         accounts_added=account_count,
+        cash_updated=cash_updated,
         holdings_added=holding_count,
         watchlist_added=watch_count,
         fundamentals_added=fundamental_count,
@@ -47,12 +51,22 @@ def _seed_accounts(config: AppConfig) -> int:
     return added
 
 
+def _seed_cash(config: AppConfig) -> bool:
+    store = PortfolioStore(config.db_path, config)
+    current_cash = store.get_cash()
+    if current_cash not in {0, 30_000_000}:
+        return False
+    store.set_cash(DEFAULT_CASH_KRW)
+    return current_cash != DEFAULT_CASH_KRW
+
+
 def _seed_holdings(config: AppConfig) -> int:
     store = PortfolioStore(config.db_path, config)
-    existing = {item.ticker for item in store.load_holdings()}
+    existing = {item.ticker: item for item in store.load_holdings()}
     added = 0
-    for item in _default_holdings():
-        if item.ticker in existing:
+    for item in _default_holdings(config.fx_usd_krw):
+        current = existing.get(item.ticker)
+        if current is not None and not _is_placeholder_holding(current):
             continue
         store.save_holding(item)
         added += 1
@@ -81,24 +95,38 @@ def _seed_fundamentals(config: AppConfig, today: date) -> int:
     return added
 
 
-def _default_holdings() -> list[Holding]:
+def _is_placeholder_holding(item: Holding) -> bool:
+    return item.quantity == 0 and item.avg_price == 0
+
+
+def _default_holdings(fx_usd_krw: float) -> list[Holding]:
     return [
-        _holding("QQQ", "US", "USD", "ETF", "CORE_ETF"),
-        _holding("SMH", "US", "USD", "ETF", "AI_SEMICONDUCTOR"),
-        _holding("AAPL", "US", "USD", "EQUITY", "BIG_TECH"),
-        _holding("AMD", "US", "USD", "EQUITY", "AI_SEMICONDUCTOR"),
+        _holding("AAPL", "GENERAL_TOSS", 11, 2_187_547, 4_541_132, "EQUITY", "BIG_TECH", fx_usd_krw),
+        _holding("AMD", "GENERAL_TOSS", 5, 651_802, 2_560_177, "EQUITY", "AI_SEMICONDUCTOR", fx_usd_krw),
+        _holding("MVST", "GENERAL_TOSS", 110, 4_364_234, 314_060, "EQUITY", "SPECULATIVE_LOSS", fx_usd_krw),
+        _holding("SMH", "ISA_KIWOOM", 1, 745_445, 770_819, "ETF", "AI_SEMICONDUCTOR", fx_usd_krw),
+        _holding("QQQ", "ISA_KIWOOM", 2, 1_965_663, 2_020_842, "ETF", "CORE_ETF", fx_usd_krw),
     ]
 
 
-def _holding(ticker: str, market: str, currency: str, asset_type: str, sector_tag: str) -> Holding:
+def _holding(
+    ticker: str,
+    account_key: str,
+    quantity: float,
+    cost_total_krw: float,
+    current_total_krw: float,
+    asset_type: str,
+    sector_tag: str,
+    fx_usd_krw: float,
+) -> Holding:
     return Holding(
         ticker=ticker,
-        account_key="GENERAL_TOSS",
-        market=market,
-        quantity=0.0,
-        avg_price=0.0,
-        current_price=0.0,
-        currency=currency,
+        account_key=account_key,
+        market="US",
+        quantity=quantity,
+        avg_price=round(cost_total_krw / quantity / fx_usd_krw, 6),
+        current_price=round(current_total_krw / quantity / fx_usd_krw, 6),
+        currency="USD",
         asset_type=asset_type,
         sector_tag=sector_tag,
     )
@@ -113,6 +141,7 @@ def _default_watchlist() -> list[tuple[str, str, str, int, str]]:
         ("SMH", "US", "AI_SEMICONDUCTOR", 2, "User default holding placeholder."),
         ("AAPL", "US", "BIG_TECH", 2, "User default holding placeholder."),
         ("AMD", "US", "AI_SEMICONDUCTOR", 2, "User default holding placeholder."),
+        ("MVST", "US", "SPECULATIVE_LOSS", 4, "Existing high-loss position to keep visible in review."),
     ]
 
 

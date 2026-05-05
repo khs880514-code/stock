@@ -998,22 +998,25 @@
 ### Background
 
 - User asked to add Samsung Electronics, SK Hynix, Pearl Abyss, QQQ, SMH, AAPL, and AMD as defaults.
+- User then provided current holdings screenshots and stated remaining cash is 29,000,000 KRW.
 - User also wanted around 10 companies to appear when the quality-stock screener is run, specifically for testing whether the workflow works.
 
 ### Cause
 
 - The screener could work, but a fresh/local DB might not show enough candidates to verify the flow.
-- The user's default holdings and Korean candidates needed to be present without asking for exact position sizes yet.
+- The user's default holdings and Korean candidates needed to be present, and the previously seeded zero-quantity placeholders needed to be replaced with the user-reported current portfolio.
 
 ### Change
 
 - Added `app/data/default_universe.py`.
 - Added `Seed default test universe` form to the Candidate Screener.
-- The seed adds missing placeholder holdings for:
-  - QQQ,
-  - SMH,
-  - AAPL,
-  - AMD.
+- The seed sets cash to 29,000,000 KRW when the current value is empty or the old 30,000,000 KRW placeholder.
+- The seed adds or replaces zero-quantity placeholder holdings with user-reported positions:
+  - AAPL 11 shares,
+  - AMD 5 shares,
+  - MVST 110 shares,
+  - SMH 1 share,
+  - QQQ 2 shares.
 - The seed adds missing watchlist rows for:
   - Samsung Electronics,
   - SK Hynix,
@@ -1021,20 +1024,23 @@
   - QQQ,
   - SMH,
   - AAPL,
-  - AMD.
+  - AMD,
+  - MVST.
 - The seed adds missing synthetic screener candidates so the quality filter returns about 10 PASS rows for test verification.
 
 ### 사전에 없는 임의 결정
 
-- Default holding quantities and prices are set to `0` because the user did not provide actual position sizes or average prices. This keeps the tickers visible without inventing portfolio value.
+- Holding average/current prices are reverse-calculated from the KRW screenshots and converted to USD using `AppConfig.fx_usd_krw` so future price refreshes keep a consistent USD structure.
+- AAPL, AMD, and MVST are assigned to `GENERAL_TOSS`; QQQ and SMH are assigned to `ISA_KIWOOM`.
+- Cash is updated only when the old value is empty or the old default 30,000,000 KRW placeholder to avoid overwriting later manual edits.
 - Pearl Abyss is stored as `263750.KQ`.
 - Candidate fundamentals are synthetic test metrics with source `seed:test-universe`; they are explicitly not recommendations.
-- Existing holdings, watchlist items, and fundamentals are not overwritten.
+- Existing non-placeholder holdings, watchlist items, and fundamentals are not overwritten.
 
 ### Operating Rule
 
 - Use seeded candidates only to verify the research-funnel UI and screener mechanics.
-- Replace placeholder holdings with real quantities and prices manually before relying on portfolio/risk calculations.
+- Verify the reverse-calculated average prices against broker detail screens before relying on tax lots or exact realized/unrealized P&L.
 - Continue to treat the app as an information, logging, and review aid, not an auto-buy recommender.
 
 ### Verification
@@ -1044,3 +1050,46 @@
 - Compile check passed: `py -3 -m compileall -q app tests`.
 - Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 90 tests.
 - Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 and in-app browser checks found `Seed default test universe`, `263750.KQ`, `QQQ`, `SMH`, and PASS rows.
+- Updated local DB from the user screenshots: cash 29,000,000 KRW; AAPL 11, AMD 5, MVST 110, SMH 1, QQQ 2; app total value is approximately 39,207,029 KRW using the configured FX rate.
+- Restarted the local UI again; HTTP 200 confirmed the page contains cash 29,000,000, MVST, AAPL, and QQQ.
+
+## 2026-05-05 User Workflow Guide / Worker Handoff
+
+### Background
+
+- User asked how to interpret the current app output and what to do when the US market is open and candidate names appear.
+- User also asked for a file summarizing all completed work for another worker.
+
+### Cause
+
+- The app now has enough screens and data sources that the workflow needs an explicit operating guide.
+- `PASS` rows can be misunderstood as recommendations unless the usage sequence is documented.
+
+### Change
+
+- Added `HANDOFF_FOR_NEXT_WORKER.md`.
+- The handoff file includes:
+  - project identity,
+  - current portfolio snapshot,
+  - implemented features,
+  - data connections,
+  - daily/US-market-open usage guide,
+  - FOMO/outside-influence handling,
+  - next engineering steps,
+  - verification commands,
+  - current known risks.
+- Updated `README.md` to point other workers to the handoff file.
+
+### 사전에 없는 임의 결정
+
+- Kept this as one comprehensive handoff file instead of scattering the guidance across multiple docs, because the user asked for a file to show another worker.
+- The user workflow explicitly states `PASS` is a research candidate label, not a buy instruction.
+
+### Operating Rule
+
+- Other workers should read `HANDOFF_FOR_NEXT_WORKER.md` before modifying the app.
+- During live market hours, the app should be used to slow down decisions, refresh context, run buy-check, and log actions, not to chase candidate rows.
+
+### Verification
+
+- File added and README link added.

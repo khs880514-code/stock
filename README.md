@@ -197,7 +197,7 @@ Use this after OpenDART for a Korean candidate, or directly for a US ticker. The
 
 ## Default Test Universe
 
-The Candidate Screener has a `Seed default test universe` button. It adds missing placeholders for Samsung Electronics, SK Hynix, Pearl Abyss, QQQ, SMH, AAPL, and AMD, plus about 10 synthetic quality-screen candidates so the screener can be tested immediately. Existing holdings or fundamentals are not overwritten. The seeded candidate metrics are test data for workflow verification, not stock recommendations.
+The Candidate Screener has a `Seed default test universe` button. It adds Samsung Electronics, SK Hynix, Pearl Abyss, QQQ, SMH, AAPL, AMD, and MVST when missing, plus about 10 synthetic quality-screen candidates so the screener can be tested immediately. The user-reported cash baseline is 29,000,000 KRW. Existing non-placeholder holdings or fundamentals are not overwritten. The seeded candidate metrics are test data for workflow verification, not stock recommendations.
 
 ## Backtest Harness
 
@@ -222,6 +222,7 @@ v1 데모와 테스트는 mock 데이터로 동작합니다. yfinance/Yahoo char
 
 구현 과정과 설계 결정은 `IMPLEMENTATION_LOG.md`에 남겼습니다.
 사용자가 결정하거나 제공해야 하는 항목은 `USER_INPUT_NEEDED.md`에 따로 모았습니다.
+다른 작업자에게 넘길 전체 현황은 `HANDOFF_FOR_NEXT_WORKER.md`를 먼저 보여주면 됩니다.
 
 ## 구조 관리 원칙
 
