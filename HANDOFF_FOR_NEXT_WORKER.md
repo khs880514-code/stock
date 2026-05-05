@@ -118,6 +118,12 @@ The visible tabs are now ordered for daily use:
 
 The primary visible app title is `주식 판단 친구`; `Stock Expert Friend` remains as a subtitle for continuity.
 
+Pre-operation UI cleanup on 2026-05-06 also made these daily-flow choices:
+
+- `4 매수 전 점검` starts with the everyday buy-check form, then current holdings, while sensitivity/blackout settings sit in a collapsed advanced panel.
+- `5 내 계좌` is for cash, holdings, and watchlist management only.
+- `6 기록/복기` contains both trade-journal entry and recent trade-journal review.
+
 ### Data Connections
 
 Currently wired:

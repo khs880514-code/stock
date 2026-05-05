@@ -30,6 +30,7 @@ def test_web_dashboard_renders_portfolio(tmp_path):
     assert "오늘은 이 순서로 보세요" in html
     assert "AAPL" in html
     assert "매수 전 체크" in html
+    assert "고급 보호장치 펼치기" in html
     assert "점수 입력 기준" in html
     assert "FOMO 7 이상은 대기" in html
     assert "오늘 적용되는 안전 규칙" in html
@@ -53,3 +54,6 @@ def test_web_dashboard_renders_portfolio(tmp_path):
     assert "불일치 경고나 대기" in html
     assert "뉴스/RSS" in html
     assert "SEC 공시" in html
+    assert html.index("매수 전 체크") < html.index("현재 보유 상태")
+    assert html.index("현재 보유 상태") < html.index("고급 보호장치 펼치기")
+    assert html.index('data-tab-panel="journal"') < html.index("매매 일지 입력")

@@ -1202,3 +1202,44 @@
 - Compile check passed: `py -3 -m compileall -q app tests`.
 - Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 91 tests.
 - Restarted the local UI at `http://127.0.0.1:8770`; in-app browser checks found the Korean app title, workflow guide, step tabs, candidate guide, `테스트 데이터`, and the Korean seed button.
+
+## 2026-05-06 Pre-Operation UI Reorder
+
+### Background
+
+- User reviewed the beginner UI and identified two red-priority issues to fix before the one-week live-use period:
+  - trade journal entry was under `5 내 계좌` while journal review was under `6 기록/복기`,
+  - `4 매수 전 점검` showed advanced sensitivity/blackout settings before the everyday buy-check form.
+
+### Cause
+
+- The first beginner UI pass improved labels and tabs, but some sections were still grouped by implementation history instead of daily user flow.
+- Advanced protection inputs are useful, but they are not the first thing a beginner should see when deciding whether to buy.
+
+### Change
+
+- Moved `매매 일지 입력` from `5 내 계좌` to `6 기록/복기`.
+- Kept `5 내 계좌` focused on cash, holdings, and watchlist management.
+- Reordered `4 매수 전 점검`:
+  - top: `매수 전 체크`,
+  - middle: `현재 보유 상태`,
+  - lower area: rule reference and an expandable advanced protection section.
+- Wrapped `종목 민감도 / 연휴 갭` and `결정 보호` inside a collapsed `고급 보호장치` details panel.
+- Did not add/remove input fields and did not change rule-engine behavior.
+
+### 사전에 없는 임의 결정
+
+- Kept the rule reference visible in the buy-check tab because it explains why the engine pauses or blocks, but moved advanced configuration into a collapsed panel to reduce first-screen pressure.
+
+### Operating Rule
+
+- Daily-action tabs should put the most frequent action first and move rare setup/advanced inputs lower or behind disclosure controls.
+- Journal input and journal review should stay together unless a future dedicated journaling workflow is intentionally split.
+
+### Verification
+
+- Focused tests passed: `py -3 -m pytest tests\test_web_ui.py tests\test_file_size_guard.py -q -p no:cacheprovider` passed 3 tests.
+- Compile check passed: `py -3 -m compileall -q app tests`.
+- Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 91 tests.
+- File-size check: `app/web_ui.py` 1062 lines, under the 1100-line guard.
+- Restarted the local UI at `http://127.0.0.1:8770`; in-app browser checks confirmed the buy-check tab shows `매수 전 체크`, `현재 보유 상태`, and `고급 보호장치`, and the journal tab shows both `매매 일지 입력` and `최근 매매 일지`.

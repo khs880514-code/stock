@@ -35,6 +35,9 @@ h2 { margin: 0 0 12px; font-size: 18px; }
 .guide-block strong { display: block; margin-bottom: 5px; font-size: 13px; color: #1f2937; }
 .score-guide ul { margin: 0; padding-left: 18px; color: #374151; font-size: 12px; line-height: 1.45; }
 .score-guide p { margin: 10px 0 0; color: #4b5563; font-size: 12px; line-height: 1.45; }
+.advanced-panel { border: 1px solid #d9dee7; border-radius: 8px; background: #f9fafb; padding: 12px; }
+.advanced-panel summary { cursor: pointer; font-weight: 700; color: #1f2937; }
+.advanced-panel .grid { margin-top: 12px; }
 .rule-context { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 14px; }
 .rule-context h3 { margin: 0 0 8px; font-size: 15px; }
 .rule-context ol { margin: 0; padding-left: 20px; color: #374151; font-size: 13px; line-height: 1.55; }
