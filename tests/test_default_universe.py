@@ -73,7 +73,7 @@ def test_seed_test_universe_web_flow(tmp_path):
     html = render_dashboard(config)
 
     assert "Default test universe seeded" in notice
-    assert "Seed default test universe" in html
-    assert "TEST" in html
+    assert "테스트용 기본 종목 넣기" in html
+    assert "테스트 데이터" in html
     assert "263750.KQ" in html
     assert "QQQ" in html

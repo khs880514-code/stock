@@ -1149,3 +1149,56 @@
 - Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 91 tests.
 - File-size check after split: `app/web_ui.py` 1048 lines, `app/main.py` 714 lines, `app/web/fundamental_screener.py` 285 lines, `app/web/data_status_panel.py` 47 lines.
 - Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 and in-app browser checks found `Seed default test universe`, `TEST` labels, and the API data-status panel.
+
+## 2026-05-06 Beginner Workflow UI Cleanup
+
+### Background
+
+- User said the app still felt difficult for a stock beginner because too much text was in English and the screen did not clearly show what to review first.
+- User asked for the UI to follow the same practical order previously explained in conversation.
+
+### Cause
+
+- The tab labels were feature-oriented instead of workflow-oriented.
+- Candidate status values such as `PASS`, `WATCH`, and `TEST` were visible without enough beginner-facing meaning.
+- Candidate input buttons still used English labels such as `Seed default test universe` and `Market PER/PBR/momentum fetch`.
+
+### Change
+
+- Changed the top tabs to a step-by-step review flow:
+  - `1 오늘 순서`,
+  - `2 정보 확인`,
+  - `3 후보 고르기`,
+  - `4 매수 전 점검`,
+  - `5 내 계좌`,
+  - `6 기록/복기`,
+  - `설정`.
+- Added `app/web/beginner_guide.py` for reusable beginner-facing workflow guidance, keeping `web_ui.py` within the file-size guard.
+- Added a first-screen guide explaining what to review in order.
+- Added short tab intro boxes that explain what each tab is for and what to do next.
+- Renamed the visible app title to `주식 판단 친구` while keeping `Stock Expert Friend` as a subtitle.
+- Reworked the candidate screener display:
+  - `PASS` renders as `검토 후보`,
+  - `WATCH` renders as `관찰 필요`,
+  - `REJECT` renders as `제외`,
+  - `TEST` renders as `테스트 데이터`.
+- Grouped candidate rows into beginner-facing sections: actual candidates, watch items, rejected items, and test data.
+- Replaced several English form labels/buttons in the candidate screen with Korean labels.
+
+### 사전에 없는 임의 결정
+
+- Kept internal rule/status codes unchanged and changed only display labels, because the engine/tests/backtest logic should remain stable.
+- Kept `Stock Expert Friend` visible as a subtitle for continuity with existing docs and tests, but made the primary title Korean.
+- Added guide text as UI copy instead of a new settings option, because the user asked for a better default beginner experience.
+
+### Operating Rule
+
+- New user-facing UI labels should default to Korean first. Internal codes may remain English when needed for rule stability, but they should not be the only visible explanation.
+- Workflow tabs should answer: what to check first, what to decide here, and where to go next.
+
+### Verification
+
+- Focused tests passed: `py -3 -m pytest tests\test_web_ui.py tests\test_default_universe.py tests\test_fundamentals_screener.py tests\test_file_size_guard.py -q -p no:cacheprovider` passed 9 tests.
+- Compile check passed: `py -3 -m compileall -q app tests`.
+- Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 91 tests.
+- Restarted the local UI at `http://127.0.0.1:8770`; in-app browser checks found the Korean app title, workflow guide, step tabs, candidate guide, `테스트 데이터`, and the Korean seed button.

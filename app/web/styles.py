@@ -4,10 +4,18 @@ CSS = """
 body { margin: 0; }
 header { background: #111827; color: white; padding: 24px; }
 header h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: 0; }
+header h1 span { display: block; margin-top: 4px; color: #9ca3af; font-size: 14px; font-weight: 600; }
 header p { margin: 0; color: #d1d5db; line-height: 1.55; max-width: 920px; }
 main { padding: 20px; max-width: 1280px; margin: 0 auto; }
 section, .grid > div { background: white; border: 1px solid #d9dee7; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
 h2 { margin: 0 0 12px; font-size: 18px; }
+.beginner-guide h2, .tab-intro h2 { margin-bottom: 10px; }
+.beginner-guide ol { margin: 0; padding-left: 22px; display: grid; gap: 10px; }
+.beginner-guide li { color: #111827; line-height: 1.45; }
+.beginner-guide li span { display: block; color: #4b5563; font-size: 13px; margin-top: 2px; }
+.tab-intro { border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a; border-radius: 8px; padding: 12px; margin-bottom: 14px; }
+.tab-intro p { margin: 0 0 6px; line-height: 1.5; font-size: 13px; }
+.tab-intro p:last-child { margin-bottom: 0; }
 .tab-nav { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; overflow-x: auto; background: #f4f6f8; border-bottom: 1px solid #d9dee7; padding: 8px 0 12px; margin-bottom: 14px; }
 .tab-button { flex: 0 0 auto; min-height: 36px; border: 1px solid #cbd5e1; border-radius: 999px; background: white; color: #374151; padding: 0 14px; font-weight: 700; cursor: pointer; }
 .tab-button.active { border-color: #2563eb; background: #2563eb; color: white; }
@@ -45,6 +53,9 @@ h2 { margin: 0 0 12px; font-size: 18px; }
 .news-list .news-flags { color: #92400e; font-weight: 700; }
 .result-note { margin-top: 10px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a; border-radius: 8px; padding: 12px; line-height: 1.5; font-size: 13px; }
 .candidate-details { margin-top: 16px; }
+.candidate-group { margin-bottom: 16px; }
+.candidate-group h4 { margin: 0 0 6px; color: #111827; font-size: 15px; }
+.candidate-group h4 span { color: #6b7280; font-size: 12px; font-weight: 600; }
 .candidate-card { border: 1px solid #d9dee7; border-radius: 8px; background: #f9fafb; padding: 12px; margin-top: 10px; }
 .candidate-card summary { cursor: pointer; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
 .candidate-card summary span { color: #4b5563; font-size: 12px; }

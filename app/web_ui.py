@@ -25,6 +25,7 @@ from app.engines.buy_check_mode import review_buy_request
 from app.engines.news_flags import classify_headline, summarize_news_flags
 from app.journal.trade_journal import TradeJournal
 from app.models import BuyReviewRequest, ConditionalDecision, Holding, MistakeType, TickerSensitivitySnapshot, TradeEntry
+from app.web.beginner_guide import render_tab_intro, render_workflow_guide
 from app.web.data_status_panel import render_data_status_panel
 from app.web.fundamental_screener import (
     build_screener_context,
@@ -355,13 +356,13 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Stock Expert Friend</title>
+  <title>주식 판단 친구</title>
   <style>{CSS}</style>
 </head>
 <body>
   <header>
     <div>
-      <h1>Stock Expert Friend</h1>
+      <h1>주식 판단 친구 <span>Stock Expert Friend</span></h1>
       <p>{_e(LEGAL_DISCLAIMER).replace(chr(10), "<br>")}</p>
     </div>
   </header>
@@ -374,11 +375,16 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
       {_metric("보유 평가액", f"{holdings_value:,}원")}
       {_metric("리스크 태그", ", ".join(portfolio.risk_tags) if portfolio.risk_tags else "없음")}
     </section>
-    <section>
-      <h2>룰엔진이 보는 정보</h2>
+    <section class="tab-panel" data-tab-panel="overview">
+      {render_workflow_guide()}
+    </section>
+    <section class="tab-panel" data-tab-panel="overview">
+      <h2>오늘 적용되는 안전 규칙</h2>
       {_rule_context_panel(config, portfolio, trades)}
     </section>
-    <section class="grid two">
+    <section class="tab-panel" data-tab-panel="buy-review">
+      {render_tab_intro("매수 전 보호장치", "급등을 보고 따라 사는 상황, 연휴 직전 갭 리스크, 이미 보류한 종목을 다시 쫓아가는 상황을 막기 위한 입력입니다.", "종목을 실제로 사기 전에는 아래 매수 검토를 먼저 실행하세요.")}
+      <div class="grid two">
       <div>
         <h2>종목 민감도 / 연휴 갭</h2>
         {_sensitivity_form()}
@@ -390,24 +396,27 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
         {_conditional_form()}
         {_conditional_table(conditional_items)}
       </div>
+      </div>
     </section>
-    <section>
+    <section class="tab-panel" data-tab-panel="data-check">
+      {render_tab_intro("정보 확인", "판단 전에 가격, 뉴스, 공시, 실적일이 얼마나 최신인지 확인하는 탭입니다.", "정보가 오래됐으면 후보를 고르기 전에 업데이트 버튼을 먼저 누르세요.")}
       <h2>최근 정보</h2>
       {_recent_info_panel(latest_prices, latest_news, latest_filings)}
     </section>
-    <section>
-      <h2>후보 발굴 / Candidate Screener</h2>
+    <section class="tab-panel" data-tab-panel="candidate">
+      {render_tab_intro("후보 고르기", "좋아 보이는 종목을 바로 사는 화면이 아니라, 재무지표와 근거로 후보를 좁히는 화면입니다.", "후보를 골랐다면 4번 매수 전 점검에서 FOMO와 외부영향을 다시 입력하세요.")}
+      <h2>후보 찾기</h2>
       {render_screener_panel(screener_candidates, candidate_context, snapshot_by_ticker)}
     </section>
-    <section>
-      <h2>데이터 상태</h2>
+    <section class="tab-panel" data-tab-panel="data-check">
+      <h2>정보 최신성</h2>
       {render_data_status_panel(data_status, api_status)}
     </section>
-    <section>
+    <section class="tab-panel" data-tab-panel="settings">
       <h2>계좌 설정</h2>
       {_account_panel(accounts)}
     </section>
-    <section class="grid two">
+    <section class="grid two tab-panel" data-tab-panel="data-check">
       <div>
         <h2>실적 일정</h2>
         {_earnings_form()}
@@ -419,13 +428,13 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
         {_research_notes_list(research_notes)}
       </div>
     </section>
-    <section class="grid two">
+    <section class="grid two tab-panel" data-tab-panel="buy-review">
       <div>
-        <h2>보유종목</h2>
+        <h2>현재 보유 상태</h2>
         {_holdings_table(portfolio.holdings)}
       </div>
       <div>
-        <h2>매수 검토</h2>
+        <h2>매수 전 체크</h2>
         <div class="score-layout">
           {_buy_check_form()}
           {_score_guide()}
@@ -433,11 +442,13 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
       </div>
     </section>
     {_decision(decision_message)}
-    <section>
+    <section class="tab-panel" data-tab-panel="buy-review">
       <h2>룰엔진 판단 기준</h2>
       {_rule_reference()}
     </section>
-    <section class="grid three">
+    <section class="tab-panel" data-tab-panel="portfolio">
+      {render_tab_intro("내 계좌", "Toss 일반계좌와 Kiwoom ISA를 수동으로 맞추는 탭입니다. 자동 동기화는 의도적으로 사용하지 않습니다.", "보유와 현금이 맞으면 기록/복기 탭에서 매매 이유를 남기세요.")}
+      <div class="grid three">
       <div>
         <h2>현금 입력</h2>
         {_cash_form(portfolio.cash_krw)}
@@ -450,8 +461,9 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
         <h2>관심종목 입력</h2>
         {_watch_form()}
       </div>
+      </div>
     </section>
-    <section class="grid two">
+    <section class="grid two tab-panel" data-tab-panel="portfolio">
       <div>
         <h2>관심종목</h2>
         {_watchlist_table(watch_items)}
@@ -462,7 +474,8 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
         {_score_guide(compact=True)}
       </div>
     </section>
-    <section>
+    <section class="tab-panel" data-tab-panel="journal">
+      {render_tab_intro("기록/복기", "수익보다 중요한 것은 왜 샀고 왜 팔았는지 남기는 것입니다. 이 기록이 다음 룰 개선의 재료가 됩니다.")}
       <h2>최근 매매 일지</h2>
       {_trades_table(trades)}
     </section>

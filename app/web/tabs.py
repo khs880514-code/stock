@@ -2,12 +2,13 @@ from __future__ import annotations
 
 
 TABS = [
-    ("overview", "대시보드"),
-    ("research-funnel", "후보/정보"),
-    ("buy-review", "매수검토"),
-    ("portfolio", "포트폴리오"),
-    ("research-notes", "리서치"),
-    ("journal", "기록"),
+    ("overview", "1 오늘 순서"),
+    ("data-check", "2 정보 확인"),
+    ("candidate", "3 후보 고르기"),
+    ("buy-review", "4 매수 전 점검"),
+    ("portfolio", "5 내 계좌"),
+    ("journal", "6 기록/복기"),
+    ("settings", "설정"),
 ]
 
 
@@ -29,12 +30,13 @@ def render_tab_script() -> str:
         for tab_id in [
             "overview",
             "overview",
-            "research-funnel",
-            "research-funnel",
-            "research-funnel",
             "overview",
+            "data-check",
+            "candidate",
+            "data-check",
+            "settings",
+            "data-check",
             "portfolio",
-            "research-notes",
             "buy-review",
             "buy-review",
             "portfolio",

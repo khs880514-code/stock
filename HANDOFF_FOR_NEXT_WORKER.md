@@ -1,6 +1,6 @@
 # Stock Expert Friend Handoff
 
-Last updated: 2026-05-05
+Last updated: 2026-05-06
 
 ## Project Identity
 
@@ -12,7 +12,7 @@ Core operating principle:
 2. Filter candidates conservatively.
 3. Attach news, filings, research notes, and portfolio context.
 4. Run buy-check only when the user is considering a real purchase.
-5. Treat `PASS` as "research candidate", not "buy".
+5. Treat `PASS` as "research candidate", not "buy"; the current UI displays this as `검토 후보`.
 
 ## Current Local App
 
@@ -94,11 +94,29 @@ Candidate screener supports:
 - Manual fundamental entry.
 - OpenDART fundamentals fetch.
 - yfinance/Yahoo market summary enrichment.
-- PASS / WATCH / REJECT table.
+- Beginner-facing grouped result sections:
+  - `검토 후보` for internal `PASS`,
+  - `관찰 필요` for internal `WATCH`,
+  - `제외` for internal `REJECT`,
+  - `테스트 데이터` for internal `TEST`.
 - Candidate detail cards.
 - Linked counts for news, filings, and research notes.
 
-Synthetic test candidates exist only to verify the screener. They are source-labeled `seed:test-universe`, displayed as `TEST` instead of `PASS`, and are not recommendations.
+Synthetic test candidates exist only to verify the screener. They are source-labeled `seed:test-universe`, displayed as `테스트 데이터` / internal `TEST` instead of `PASS`, and are not recommendations.
+
+### Current Beginner UI Flow
+
+The visible tabs are now ordered for daily use:
+
+1. `1 오늘 순서`
+2. `2 정보 확인`
+3. `3 후보 고르기`
+4. `4 매수 전 점검`
+5. `5 내 계좌`
+6. `6 기록/복기`
+7. `설정`
+
+The primary visible app title is `주식 판단 친구`; `Stock Expert Friend` remains as a subtitle for continuity.
 
 ### Data Connections
 

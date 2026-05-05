@@ -131,7 +131,8 @@ def test_fundamental_cli_and_web_flow(tmp_path):
     assert "005930.KS" in notice
 
     html = render_dashboard(config)
-    assert "Candidate Screener" in html
+    assert "후보 찾기" in html
+    assert "후보 판정 결과" in html
     assert "종목별 상세 검토" in html
     assert "다음 확인" in html
     assert "000660.KS" in html

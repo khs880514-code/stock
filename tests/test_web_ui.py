@@ -19,21 +19,25 @@ def test_web_dashboard_renders_portfolio(tmp_path):
         )
     )
     html = render_dashboard(config)
+    assert "주식 판단 친구" in html
     assert "Stock Expert Friend" in html
     assert 'data-tab-target="overview"' in html
+    assert 'data-tab-target="data-check"' in html
+    assert 'data-tab-target="candidate"' in html
     assert 'data-tab-target="buy-review"' in html
     assert 'data-tab-target="portfolio"' in html
-    assert 'data-tab-target="research-funnel"' in html
+    assert 'data-tab-target="journal"' in html
+    assert "오늘은 이 순서로 보세요" in html
     assert "AAPL" in html
-    assert "매수 검토" in html
+    assert "매수 전 체크" in html
     assert "점수 입력 기준" in html
     assert "FOMO 7 이상은 대기" in html
-    assert "룰엔진이 보는 정보" in html
+    assert "오늘 적용되는 안전 규칙" in html
     assert "룰엔진 판단 기준" in html
     assert "NO_TRADE" in html
     assert "post_drop_chase" in html
     assert "최근 정보" in html
-    assert "데이터 상태" in html
+    assert "정보 최신성" in html
     assert "API 연결 준비 상태" in html
     assert "계좌 설정" in html
     assert "일반 - 토스증권" in html
