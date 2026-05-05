@@ -106,6 +106,9 @@ def _evaluate(item: FundamentalSnapshot, criteria: ScreenerCriteria) -> Screener
     if hard_fails:
         status = "REJECT"
         cautions.extend(hard_fails)
+    elif item.source.startswith("seed:test-universe"):
+        status = "TEST"
+        cautions.append("synthetic test candidate; not an operating PASS")
     elif data_points < criteria.min_data_points_for_pass:
         status = "WATCH"
         cautions.append(f"데이터 부족: 핵심 지표 {data_points}개만 입력됨")
@@ -186,4 +189,4 @@ def _data_points(item: FundamentalSnapshot) -> int:
 
 
 def _status_rank(status: str) -> int:
-    return {"PASS": 0, "WATCH": 1, "REJECT": 2}.get(status, 9)
+    return {"PASS": 0, "WATCH": 1, "TEST": 2, "REJECT": 3}.get(status, 9)

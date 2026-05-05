@@ -98,7 +98,7 @@ Candidate screener supports:
 - Candidate detail cards.
 - Linked counts for news, filings, and research notes.
 
-Synthetic test candidates exist only to verify the screener. They are source-labeled `seed:test-universe` and are not recommendations.
+Synthetic test candidates exist only to verify the screener. They are source-labeled `seed:test-universe`, displayed as `TEST` instead of `PASS`, and are not recommendations.
 
 ### Data Connections
 
@@ -187,25 +187,30 @@ Suggested interpretation:
 
 Recommended next engineering steps:
 
-1. Add a better Korean valuation provider for PER/PBR if possible.
-2. Split Candidate Screener controls into smaller sub-sections:
+1. Run the app in real trading/review use for one week before adding more features.
+2. Confirm the remaining data-policy decisions:
+   - yfinance reliability metadata,
+   - manual vs provider overwrite behavior,
+   - stale-data thresholds.
+3. Add a better Korean valuation provider for PER/PBR if real use shows DART/yfinance are insufficient.
+4. Split Candidate Screener controls into smaller sub-sections:
    - seed/test data,
    - DART,
    - market summary,
    - manual entry.
-3. Add a portfolio detail screen that shows:
+5. Add a portfolio detail screen that shows:
    - account,
    - current value,
    - gain/loss,
    - theme exposure,
    - whether a holding is actual or placeholder.
-4. Add a safer "live market checklist" panel beside buy-check.
-5. Add exact user-entered broker detail fields for:
+6. Add a safer "live market checklist" panel beside buy-check.
+7. Add exact user-entered broker detail fields for:
    - cost total KRW,
    - current value KRW,
    - realized/unrealized P&L,
    - broker screenshot date.
-6. Migrate holdings primary key from ticker to `(account_key, ticker)` before supporting duplicate tickers across Toss and Kiwoom.
+8. Migrate holdings primary key from ticker to `(account_key, ticker)` before supporting duplicate tickers across Toss and Kiwoom.
 
 ## Verification Commands
 
@@ -229,9 +234,10 @@ py -3 -B -m app.main --web --port 8770
 
 ## Current Known Risks
 
-- The app contains synthetic seed fundamentals for workflow testing.
+- The app contains synthetic seed fundamentals for workflow testing; they should render as `TEST`, not `PASS`.
 - yfinance does not reliably return all Korean valuation fields.
+- yfinance reliability metadata, overwrite priority, and stale thresholds are provisional and still need user confirmation.
 - Broker sync is intentionally not implemented.
 - Current holdings are derived from screenshots, not exact broker-exported data.
 - `PASS` can be misunderstood as a recommendation if the UI is not read carefully.
-- `web_ui.py` is close to the file-size guard and should be split further before adding large UI logic.
+- `web_ui.py` has been partially split again, but large UI additions should still start in `app/web/`.

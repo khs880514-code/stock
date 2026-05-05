@@ -30,7 +30,8 @@ def test_seed_user_default_universe_adds_holdings_watchlist_and_candidates(tmp_p
     }
     candidates = screen(FundamentalsStore(config.db_path).list_all())
     assert len(candidates) >= 10
-    assert sum(item.status == "PASS" for item in candidates) >= 10
+    assert sum(item.status == "TEST" for item in candidates) >= 10
+    assert sum(item.status == "PASS" for item in candidates) == 0
 
 
 def test_seed_user_default_universe_does_not_overwrite_existing_user_data(tmp_path):
@@ -73,5 +74,6 @@ def test_seed_test_universe_web_flow(tmp_path):
 
     assert "Default test universe seeded" in notice
     assert "Seed default test universe" in html
+    assert "TEST" in html
     assert "263750.KQ" in html
     assert "QQQ" in html

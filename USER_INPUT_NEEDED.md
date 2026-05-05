@@ -14,6 +14,18 @@ Last updated: 2026-05-05
   - Naver Finance-style summary data if a stable allowed path is chosen.
 - Optional macro/earnings keys if you want those connected later.
 
+## Data Policy Decisions To Confirm
+
+- yfinance reliability metadata:
+  - Current provisional rule: yfinance values are secondary enrichment and are labeled through `source` / `notes`, but there is no dedicated reliability metadata column yet.
+  - Please confirm whether you want a separate provider-confidence field such as `HIGH/MEDIUM/LOW`.
+- manual vs yfinance priority:
+  - Current provisional rule: user/manual and existing verified values win; yfinance fills blanks and may replace only `seed:test-universe` test values.
+  - Please confirm whether a future "overwrite from live provider" button is needed.
+- stale threshold:
+  - Current provisional rule in the data-status panel: price within 7 days is good, within 14 days is normal, older or missing needs refresh.
+  - Please confirm whether Korean/US markets should use different stale thresholds.
+
 ## Screener Policy
 
 - Confirm whether the current conservative defaults are acceptable:

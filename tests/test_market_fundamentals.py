@@ -101,6 +101,30 @@ def test_web_market_fundamental_post_uses_fetcher(tmp_path, monkeypatch):
     assert FundamentalsStore(config.db_path).get("005930.KS").per == 10.0
 
 
+def test_market_summary_does_not_overwrite_manual_values(tmp_path):
+    db_path = tmp_path / "market-manual.sqlite3"
+    FundamentalsStore(db_path).upsert(
+        FundamentalSnapshot(
+            ticker="005930.KS",
+            per=12.0,
+            forward_per=11.0,
+            source="manual",
+        )
+    )
+
+    snapshot = update_market_fundamentals(
+        db_path,
+        "005930.KS",
+        today=date(2026, 5, 5),
+        client=FakeMarketClient(),
+        refresh_prices=False,
+    )
+
+    assert snapshot.per == 12.0
+    assert snapshot.forward_per == 11.0
+    assert snapshot.pbr == 1.7
+
+
 def _seed_prices(db_path, ticker: str, today: date) -> None:
     PriceHistoryStore(db_path).upsert_many(
         [

@@ -79,13 +79,21 @@ def _merge_market_summary(
         sector_tag=(sector_tag if sector_tag != "UNKNOWN" else base.sector_tag) or "UNKNOWN",
         as_of_date=today,
         currency=currency,
-        market_cap_krw=_market_cap_krw(_pick_number(summary, "marketCap"), currency, fx_usd_krw),
-        per=_prefer(_pick_number(summary, "trailingPE"), base.per),
-        forward_per=_prefer(_pick_number(summary, "forwardPE"), base.forward_per),
-        pbr=_prefer(_pick_number(summary, "priceToBook"), base.pbr),
-        psr=_prefer(_pick_number(summary, "priceToSalesTrailing12Months"), base.psr),
-        ev_ebitda=_prefer(_pick_number(summary, "enterpriseToEbitda"), base.ev_ebitda),
-        dividend_yield_pct=_prefer(_dividend_yield_pct(summary), base.dividend_yield_pct),
+        market_cap_krw=_prefer_market(
+            _market_cap_krw(_pick_number(summary, "marketCap"), currency, fx_usd_krw),
+            base.market_cap_krw,
+            base.source,
+        ),
+        per=_prefer_market(_pick_number(summary, "trailingPE"), base.per, base.source),
+        forward_per=_prefer_market(_pick_number(summary, "forwardPE"), base.forward_per, base.source),
+        pbr=_prefer_market(_pick_number(summary, "priceToBook"), base.pbr, base.source),
+        psr=_prefer_market(_pick_number(summary, "priceToSalesTrailing12Months"), base.psr, base.source),
+        ev_ebitda=_prefer_market(_pick_number(summary, "enterpriseToEbitda"), base.ev_ebitda, base.source),
+        dividend_yield_pct=_prefer_market(
+            _dividend_yield_pct(summary),
+            base.dividend_yield_pct,
+            base.source,
+        ),
         roe_pct=_prefer(base.roe_pct, _pct(summary, "returnOnEquity")),
         roa_pct=_prefer(base.roa_pct, _pct(summary, "returnOnAssets")),
         operating_margin_pct=_prefer(base.operating_margin_pct, _pct(summary, "operatingMargins")),
@@ -94,9 +102,9 @@ def _merge_market_summary(
         eps_growth_pct=_prefer(base.eps_growth_pct, _pct(summary, "earningsGrowth")),
         debt_to_equity_pct=_prefer(base.debt_to_equity_pct, _pick_number(summary, "debtToEquity")),
         current_ratio=_prefer(base.current_ratio, _pick_number(summary, "currentRatio")),
-        fcf_yield_pct=_prefer(_fcf_yield(summary), base.fcf_yield_pct),
-        price_momentum_3m_pct=_prefer(momentum_3m, base.price_momentum_3m_pct),
-        price_momentum_12m_pct=_prefer(momentum_12m, base.price_momentum_12m_pct),
+        fcf_yield_pct=_prefer_market(_fcf_yield(summary), base.fcf_yield_pct, base.source),
+        price_momentum_3m_pct=_prefer_market(momentum_3m, base.price_momentum_3m_pct, base.source),
+        price_momentum_12m_pct=_prefer_market(momentum_12m, base.price_momentum_12m_pct, base.source),
         source=_join_source(base.source, "yfinance:summary"),
         notes=_join_notes(
             base.notes,
@@ -197,6 +205,12 @@ def _fcf_yield(summary: dict) -> float | None:
 
 def _prefer(new_value: float | None, existing_value: float | None) -> float | None:
     return new_value if new_value is not None else existing_value
+
+
+def _prefer_market(new_value: float | None, existing_value: float | None, existing_source: str) -> float | None:
+    if existing_value is None or existing_source.startswith("seed:test-universe"):
+        return new_value if new_value is not None else existing_value
+    return existing_value
 
 
 def _join_source(existing: str, new_source: str) -> str:

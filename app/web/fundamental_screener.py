@@ -196,7 +196,7 @@ def _candidate_row(item: ScreenerCandidate, context: dict[str, int]) -> str:
     caution_text = "<br>".join(part for part in [cautions, _e(f"부족: {missing}") if missing else ""] if part) or "-"
     linked = f"뉴스 {context['news']} / 공시 {context['filings']} / 리서치 {context['research']}"
     return (
-        f"<tr><td><b>{_e(item.status)}</b></td><td>{_e(item.ticker)}<br><span>{_e(item.company_name or item.sector_tag)}</span></td>"
+        f'<tr class="{_row_class(item.status)}"><td>{_status_badge(item.status)}</td><td>{_e(item.ticker)}<br><span>{_e(item.company_name or item.sector_tag)}</span></td>'
         f"<td>{item.score}<br><span>data {item.data_points}</span></td><td>{reasons}</td><td>{caution_text}</td><td>{_e(linked)}</td></tr>"
     )
 
@@ -265,6 +265,15 @@ def _fmt(value: object) -> str:
     if isinstance(value, float):
         return f"{value:g}"
     return str(value)
+
+
+def _row_class(status: str) -> str:
+    return "candidate-test" if status == "TEST" else ""
+
+
+def _status_badge(status: str) -> str:
+    klass = "status-badge test" if status == "TEST" else "status-badge"
+    return f'<span class="{klass}">{_e(status)}</span>'
 
 
 def _optional_float(form: dict[str, str], key: str) -> float | None:

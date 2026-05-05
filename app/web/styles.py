@@ -55,6 +55,9 @@ h2 { margin: 0 0 12px; font-size: 18px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; border-bottom: 1px solid #e5e7eb; padding: 9px 8px; vertical-align: top; }
 th { color: #4b5563; font-weight: 700; background: #f9fafb; }
+tr.candidate-test td { background: #f3f4f6; color: #6b7280; }
+.status-badge { display: inline-block; border-radius: 999px; padding: 2px 8px; background: #e0f2fe; color: #075985; font-size: 12px; font-weight: 700; }
+.status-badge.test { background: #e5e7eb; color: #4b5563; }
 form { display: grid; gap: 10px; }
 label { display: grid; gap: 5px; color: #374151; font-size: 13px; }
 input, select, textarea { width: 100%; min-height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 9px; font: inherit; }

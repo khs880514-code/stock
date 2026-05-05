@@ -197,7 +197,7 @@ Use this after OpenDART for a Korean candidate, or directly for a US ticker. The
 
 ## Default Test Universe
 
-The Candidate Screener has a `Seed default test universe` button. It adds Samsung Electronics, SK Hynix, Pearl Abyss, QQQ, SMH, AAPL, AMD, and MVST when missing, plus about 10 synthetic quality-screen candidates so the screener can be tested immediately. The user-reported cash baseline is 29,000,000 KRW. Existing non-placeholder holdings or fundamentals are not overwritten. The seeded candidate metrics are test data for workflow verification, not stock recommendations.
+The Candidate Screener has a `Seed default test universe` button. It adds Samsung Electronics, SK Hynix, Pearl Abyss, QQQ, SMH, AAPL, AMD, and MVST when missing, plus about 10 synthetic quality-screen candidates so the screener can be tested immediately. The user-reported cash baseline is 29,000,000 KRW. Existing non-placeholder holdings or fundamentals are not overwritten. The seeded candidate metrics are test data for workflow verification, render as `TEST` rather than `PASS`, and are not stock recommendations.
 
 ## Backtest Harness
 

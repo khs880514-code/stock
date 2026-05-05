@@ -1093,3 +1093,59 @@
 ### Verification
 
 - File added and README link added.
+
+## 2026-05-05 Pre-Operation Priority Check and Safety Cleanup
+
+### Background
+
+- User brought three checkpoint concerns before real operation:
+  - yfinance reliability metadata,
+  - manual vs yfinance priority,
+  - stale threshold,
+  - synthetic test candidates appearing as `PASS`,
+  - `web_ui.py` being close to the file-size guard.
+- User also asked whether the proposed next-priority list was sensible.
+
+### Cause
+
+- The market-summary step had logged yfinance as secondary enrichment, but it did not explicitly record all three data-policy decisions that should have been user-confirmed.
+- Synthetic `seed:test-universe` rows could be mistaken for real quality-screen `PASS` rows.
+- `web_ui.py` remained close enough to the guard that another UI feature could push it over the line.
+
+### Change
+
+- Added `USER_INPUT_NEEDED.md` data-policy confirmation items:
+  - yfinance reliability metadata,
+  - manual/provider overwrite priority,
+  - stale-data thresholds.
+- Changed the screener so `seed:test-universe` rows render as `TEST`, not `PASS`.
+- Added visual styling for `TEST` rows.
+- Changed yfinance market enrichment priority:
+  - manual/existing verified values win,
+  - yfinance fills blanks,
+  - yfinance may replace only `seed:test-universe` values.
+- Split data-status rendering out of `app/web_ui.py` into `app/web/data_status_panel.py`.
+- Updated `HANDOFF_FOR_NEXT_WORKER.md` priority recommendations to make one week of real operation the top priority after these safety fixes.
+
+### 사전에 없는 임의 결정
+
+- The following are now explicitly provisional and require user confirmation before deeper implementation:
+  - yfinance reliability metadata: currently represented only through source/notes, no dedicated reliability column.
+  - manual vs yfinance priority: current code uses manual/existing verified values over yfinance; yfinance fills blanks and replaces seed data only.
+  - stale threshold: current data-status behavior is price <= 7 days good, <= 14 days normal, older/missing needs refresh.
+- Synthetic candidates use `TEST` status instead of a separate table because this is the smallest UI change that removes `PASS` confusion before real operation.
+- The data-status panel was chosen for the first web split because it is self-contained and reduces `web_ui.py` without changing dashboard behavior.
+
+### Operating Rule
+
+- After these safety fixes, do not add more features until the user has run the app for about a week and identified actual pain points.
+- New large UI work must start in `app/web/`, not in `app/web_ui.py`.
+- Test seed rows must never be presented as operating PASS rows.
+
+### Verification
+
+- Focused tests passed: `py -3 -m pytest tests\test_default_universe.py tests\test_market_fundamentals.py tests\test_fundamentals_screener.py tests\test_web_ui.py tests\test_file_size_guard.py -q -p no:cacheprovider` passed 12 tests.
+- Compile check passed: `py -3 -m compileall -q app tests`.
+- Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 91 tests.
+- File-size check after split: `app/web_ui.py` 1048 lines, `app/main.py` 714 lines, `app/web/fundamental_screener.py` 285 lines, `app/web/data_status_panel.py` 47 lines.
+- Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 and in-app browser checks found `Seed default test universe`, `TEST` labels, and the API data-status panel.
