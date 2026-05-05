@@ -65,12 +65,12 @@ def build_ticker_data_status(db_path: Path | str, tickers: list[str], today: dat
 
 def build_api_readiness_status() -> list[ApiReadinessStatus]:
     return [
-        ApiReadinessStatus("가격", "부분 연결", "현재 yfinance/Yahoo chart 경로 사용. 토스/키움 가격 연동은 보류"),
+        ApiReadinessStatus("가격/시장요약", "연결됨", "yfinance/Yahoo chart와 market summary로 가격, PER/PBR, 시총, 모멘텀 보강"),
         ApiReadinessStatus("뉴스", "부분 연결", "현재 Google News RSS 사용. 내일 별도 뉴스 API가 있으면 추가 가능"),
         ApiReadinessStatus("SEC 공시", _env_status("SEF_SEC_USER_AGENT"), "연락 가능한 User-Agent 설정 후 라이브 수집 사용"),
         ApiReadinessStatus("실적 캘린더", _env_status("SEF_ALPHA_VANTAGE_API_KEY"), "API key가 있으면 자동 실적 일정 수집기 연결"),
         ApiReadinessStatus("거시지표", _env_status("SEF_FRED_API_KEY"), "FRED/ECOS 키 확인 후 매크로 수집기 연결"),
-        ApiReadinessStatus("국내 공시", _env_status("SEF_DART_API_KEY"), "OpenDART 키 확인 후 DART 수집기 연결"),
+        ApiReadinessStatus("국내 공시", _env_status("SEF_DART_API_KEY"), "OpenDART 단일회사 주요계정 수집기 연결됨"),
         ApiReadinessStatus("브로커 동기화", "N/A", "자동 동기화 사용 안 함. 토스/키움 포트폴리오는 수동 입력 유지"),
     ]
 

@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from app.config import AppConfig
 from app.data.filings_collector import FilingStore
 from app.data.fundamentals_store import FundamentalSnapshot, FundamentalsStore
+from app.data.market_fundamentals import update_market_fundamentals
 from app.data.news_store import NewsStore
 from app.data.opendart_fundamentals import update_from_opendart
 from app.data.research_notes_store import ResearchNotesStore
@@ -68,6 +69,19 @@ def handle_dart_fundamental_post(config: AppConfig, form: dict[str, str]) -> str
     return f"OpenDART fundamentals saved: {snapshot.ticker} {snapshot.company_name}"
 
 
+def handle_market_fundamental_post(config: AppConfig, form: dict[str, str]) -> str:
+    ticker = form.get("ticker", "").strip()
+    sector_tag = form.get("sector_tag", "UNKNOWN")
+    snapshot = update_market_fundamentals(
+        config.db_path,
+        ticker=ticker,
+        sector_tag=sector_tag,
+        fx_usd_krw=config.fx_usd_krw,
+        today=datetime.now(tz=KST).date(),
+    )
+    return f"Market summary saved: {snapshot.ticker} {snapshot.company_name}"
+
+
 def build_screener_context(
     config: AppConfig,
 ) -> tuple[list[ScreenerCandidate], dict[str, dict[str, int]], dict[str, FundamentalSnapshot]]:
@@ -120,6 +134,12 @@ def _fundamental_form() -> str:
   <label>Sector tag<input name="sector_tag" value="AI_SEMICONDUCTOR"></label>
   <button>OpenDART fundamentals fetch</button>
   <p class="form-note">OpenDART key is read from local .env. This fills reported profitability/growth/stability fields; PER/PBR still need market-price data.</p>
+</form>
+<form method="post" action="/market-fundamental">
+  <label>Market summary ticker<input name="ticker" value="005930.KS" required></label>
+  <label>Sector tag<input name="sector_tag" value="AI_SEMICONDUCTOR"></label>
+  <button>Market PER/PBR/momentum fetch</button>
+  <p class="form-note">Uses yfinance/Yahoo where available. This merges valuation, market cap, dividend yield, FCF yield, and 3M/12M momentum without overwriting DART-only fields.</p>
 </form>
 <form method="post" action="/fundamental">
   <label>종목<input name="ticker" value="005930.KS" required></label>

@@ -189,7 +189,11 @@ UI의 `후보 발굴 / Candidate Screener` 영역에서는 재무지표 입력 �
 
 The candidate screener includes an `OpenDART fundamentals fetch` form. It reads `SEF_DART_API_KEY` from the ignored local `.env`, looks up the DART corp code through `corpCode.xml`, calls `fnlttSinglAcnt`, and stores only financial-statement-derived metrics such as revenue growth, operating margin, net margin, ROE/ROA, and debt/equity.
 
-This does not fill PER/PBR, market cap, dividend yield, or price momentum. Those still require a market-price or summary provider. Toss/Kiwoom broker sync remains N/A, and portfolio input stays manual.
+The companion `Market PER/PBR/momentum fetch` form uses yfinance/Yahoo where available to merge PER, forward PER, PBR, market cap, dividend yield, FCF yield, and 3M/12M momentum into the same candidate snapshot. DART-derived statement metrics are preserved when already present. Toss/Kiwoom broker sync remains N/A, and portfolio input stays manual.
+
+## Market Summary Fundamentals
+
+Use this after OpenDART for a Korean candidate, or directly for a US ticker. The market summary provider is useful for valuation and price-derived context, but it is a secondary provider and should be checked before final review. If yfinance does not provide a field, the app leaves the existing value unchanged instead of inventing one.
 
 ## Backtest Harness
 
@@ -208,7 +212,7 @@ stdout에는 요약이 출력되고, 상세 결과는 `backtest_report_<timestam
 
 ## 실제 API 연결 상태
 
-v1 데모와 테스트는 mock 데이터로 동작합니다. yfinance/Yahoo chart, Google News RSS, SEC EDGAR submissions는 선택적으로 사용할 수 있습니다. FRED, ECOS, DART, 실적 캘린더 API는 아직 credentialed production integration이 아니라 어댑터 경계 또는 내일 연결할 항목으로 남겨두었습니다. 토스/키움 브로커 자동 동기화는 사용하지 않고, 포트폴리오 입력은 수동 경로를 유지합니다.
+v1 데모와 테스트는 mock 데이터로 동작합니다. yfinance/Yahoo chart, yfinance market summary, Google News RSS, SEC EDGAR submissions, and OpenDART single-company major accounts are wired as optional live paths. FRED, ECOS, automatic earnings calendar, Naver-style summary data, and broker sync remain future optional work. 토스/키움 브로커 자동 동기화는 사용하지 않고, 포트폴리오 입력은 수동 경로를 유지합니다.
 
 ## 구현 로그
 
@@ -235,4 +239,4 @@ v1 데모와 테스트는 mock 데이터로 동작합니다. yfinance/Yahoo char
 - 금융회사처럼 보이는 표시 금지
 ## Live API Status
 
-The provided DART key and SEC User-Agent are sufficient for the currently wired disclosure paths. SEC EDGAR and Google News RSS do not need paid keys; SEC only needs the User-Agent. Optional future keys are only needed for macro data, automatic earnings calendars, paid news providers, or a separate market-summary provider.
+The provided DART key and SEC User-Agent are sufficient for the currently wired disclosure paths. SEC EDGAR, Google News RSS, yfinance/Yahoo chart, and yfinance market summary do not need paid keys; SEC only needs the User-Agent. Optional future keys are only needed for macro data, automatic earnings calendars, paid news providers, or a separate market-summary provider.

@@ -29,6 +29,7 @@ from app.web.fundamental_screener import (
     build_screener_context,
     handle_dart_fundamental_post,
     handle_fundamental_post,
+    handle_market_fundamental_post,
     render_screener_panel,
 )
 from app.web.styles import CSS
@@ -295,6 +296,9 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
 
     if path == "/dart-fundamental":
         return handle_dart_fundamental_post(config, form), ""
+
+    if path == "/market-fundamental":
+        return handle_market_fundamental_post(config, form), ""
 
     if path == "/research-note":
         note_id = ResearchNotesStore(config.db_path).add(

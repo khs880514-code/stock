@@ -943,3 +943,52 @@
 - Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 85 tests.
 - Live OpenDART smoke passed for `005930.KS` and `000660.KS` using the local ignored `.env`; no key value was printed or committed.
 - Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 confirmed and the in-app browser found `OpenDART fundamentals fetch`, `005930.KS`, and `000660.KS`.
+
+## 2026-05-05 Market Summary Fundamentals Adapter
+
+### Background
+
+- User pointed at the API readiness table and asked to proceed with the next planned work.
+- The next blocker after OpenDART was that PER, PBR, market cap, dividend yield, FCF yield, and momentum cannot be reliably derived from DART major accounts alone.
+
+### Cause
+
+- Existing yfinance/Yahoo support stored price history for buy-review and post-drop rules, but it did not enrich candidate fundamentals.
+- The candidate screener still had missing valuation fields after OpenDART collection.
+
+### Change
+
+- Added `app/data/market_fundamentals.py`.
+- Added yfinance market-summary enrichment for:
+  - market cap,
+  - PER / forward PER,
+  - PBR / PSR / EV-EBITDA,
+  - dividend yield,
+  - FCF yield,
+  - 3M and 12M price momentum.
+- Added a Candidate Screener UI form: `Market PER/PBR/momentum fetch`.
+- Updated API readiness copy from pending/partial to wired for price/market summary and OpenDART.
+- Added tests for market-summary mapping, DART-preserving merge behavior, momentum calculation, and the web POST path.
+- Updated `README.md` and `USER_INPUT_NEEDED.md`.
+
+### 사전에 없는 임의 결정
+
+- Market-summary values are treated as enrichment, not as final truth. They are labeled `yfinance:summary` and the note tells the user to verify provider values before final review.
+- Existing statement-derived metrics are preserved when present; market summary fills only missing statement-like values.
+- USD market caps are converted to KRW using `AppConfig.fx_usd_krw`; KRW market caps are stored as-is.
+- yfinance price-history refresh failure does not block summary enrichment. Momentum stays blank if usable price history is unavailable.
+
+### Operating Rule
+
+- Use OpenDART first for Korean financial-statement fields, then use market summary to fill valuation and momentum.
+- `PASS` remains a review candidate label only, not a buy instruction.
+- Toss/Kiwoom broker sync remains N/A; portfolio input stays manual.
+
+### Verification
+
+- Focused tests passed: `py -3 -m pytest tests\test_market_fundamentals.py tests\test_opendart_fundamentals.py tests\test_fundamentals_screener.py tests\test_web_ui.py tests\test_data_status.py tests\test_file_size_guard.py -q -p no:cacheprovider` passed 14 tests.
+- Installed `requirements.txt` into the local Python environment because `yfinance` was declared but missing at runtime.
+- Live yfinance smoke passed for `005930.KS` and `000660.KS`; forward PER, market cap, dividend yield, and momentum fields were saved where the provider returned them.
+- Compile check passed: `py -3 -m compileall -q app tests`.
+- Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 87 tests.
+- Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 and in-app browser checks found `Market PER/PBR/momentum fetch`, `가격/시장요약`, `005930.KS`, and `000660.KS`.

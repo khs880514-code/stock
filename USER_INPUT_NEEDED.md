@@ -9,9 +9,9 @@ Last updated: 2026-05-05
   - SEC User-Agent stored locally in ignored `.env` as `SEF_SEC_USER_AGENT`.
 - Implemented first:
   - DART/OpenDART single-company major accounts for Korean financial-statement-derived fundamentals.
+  - yfinance/Yahoo market summary for PER/PBR/market cap/dividend/FCF yield/momentum enrichment.
 - Remaining optional data sources:
   - Naver Finance-style summary data if a stable allowed path is chosen.
-  - yfinance for US tickers and market-price-derived valuation/momentum data.
 - Optional macro/earnings keys if you want those connected later.
 
 ## Screener Policy
