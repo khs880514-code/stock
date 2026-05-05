@@ -5,6 +5,7 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from app.config import AppConfig
+from app.data.default_universe import seed_user_default_universe
 from app.data.filings_collector import FilingStore
 from app.data.fundamentals_store import FundamentalSnapshot, FundamentalsStore
 from app.data.market_fundamentals import update_market_fundamentals
@@ -82,6 +83,15 @@ def handle_market_fundamental_post(config: AppConfig, form: dict[str, str]) -> s
     return f"Market summary saved: {snapshot.ticker} {snapshot.company_name}"
 
 
+def handle_seed_test_universe_post(config: AppConfig) -> str:
+    result = seed_user_default_universe(config, today=datetime.now(tz=KST).date())
+    return (
+        "Default test universe seeded: "
+        f"accounts {result.accounts_added}, holdings {result.holdings_added}, "
+        f"watchlist {result.watchlist_added}, fundamentals {result.fundamentals_added}"
+    )
+
+
 def build_screener_context(
     config: AppConfig,
 ) -> tuple[list[ScreenerCandidate], dict[str, dict[str, int]], dict[str, FundamentalSnapshot]]:
@@ -128,6 +138,10 @@ def _fundamental_form() -> str:
     dart_year = datetime.now(tz=KST).year - 1
     current_year = datetime.now(tz=KST).year
     return f"""<div class="stacked-forms">
+<form method="post" action="/seed-test-universe">
+  <button>Seed default test universe</button>
+  <p class="form-note">Adds Samsung, SK Hynix, Pearl Abyss, QQQ, SMH, AAPL, AMD, and about 10 synthetic quality-screen test candidates only when missing.</p>
+</form>
 <form method="post" action="/dart-fundamental">
   <label>OpenDART ticker<input name="ticker" value="005930.KS" required></label>
   <div class="row"><label>Business year<input name="bsns_year" type="number" value="{dart_year}" min="2015" max="{current_year}"></label><label>Report<select name="reprt_code"><option value="11011">Annual 11011</option><option value="11013">Q1 11013</option><option value="11012">Half 11012</option><option value="11014">Q3 11014</option></select></label></div>

@@ -992,3 +992,55 @@
 - Compile check passed: `py -3 -m compileall -q app tests`.
 - Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 87 tests.
 - Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 and in-app browser checks found `Market PER/PBR/momentum fetch`, `가격/시장요약`, `005930.KS`, and `000660.KS`.
+
+## 2026-05-05 Default Test Universe Seed
+
+### Background
+
+- User asked to add Samsung Electronics, SK Hynix, Pearl Abyss, QQQ, SMH, AAPL, and AMD as defaults.
+- User also wanted around 10 companies to appear when the quality-stock screener is run, specifically for testing whether the workflow works.
+
+### Cause
+
+- The screener could work, but a fresh/local DB might not show enough candidates to verify the flow.
+- The user's default holdings and Korean candidates needed to be present without asking for exact position sizes yet.
+
+### Change
+
+- Added `app/data/default_universe.py`.
+- Added `Seed default test universe` form to the Candidate Screener.
+- The seed adds missing placeholder holdings for:
+  - QQQ,
+  - SMH,
+  - AAPL,
+  - AMD.
+- The seed adds missing watchlist rows for:
+  - Samsung Electronics,
+  - SK Hynix,
+  - Pearl Abyss,
+  - QQQ,
+  - SMH,
+  - AAPL,
+  - AMD.
+- The seed adds missing synthetic screener candidates so the quality filter returns about 10 PASS rows for test verification.
+
+### 사전에 없는 임의 결정
+
+- Default holding quantities and prices are set to `0` because the user did not provide actual position sizes or average prices. This keeps the tickers visible without inventing portfolio value.
+- Pearl Abyss is stored as `263750.KQ`.
+- Candidate fundamentals are synthetic test metrics with source `seed:test-universe`; they are explicitly not recommendations.
+- Existing holdings, watchlist items, and fundamentals are not overwritten.
+
+### Operating Rule
+
+- Use seeded candidates only to verify the research-funnel UI and screener mechanics.
+- Replace placeholder holdings with real quantities and prices manually before relying on portfolio/risk calculations.
+- Continue to treat the app as an information, logging, and review aid, not an auto-buy recommender.
+
+### Verification
+
+- Focused tests passed: `py -3 -m pytest tests\test_default_universe.py tests\test_fundamentals_screener.py tests\test_web_ui.py tests\test_file_size_guard.py -q -p no:cacheprovider` passed 9 tests.
+- Local DB seed smoke added missing defaults without overwriting existing Samsung/SK Hynix data; current local screener shows 10 candidates and 10 PASS rows.
+- Compile check passed: `py -3 -m compileall -q app tests`.
+- Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 90 tests.
+- Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 and in-app browser checks found `Seed default test universe`, `263750.KQ`, `QQQ`, `SMH`, and PASS rows.

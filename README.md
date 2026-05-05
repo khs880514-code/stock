@@ -195,6 +195,10 @@ The companion `Market PER/PBR/momentum fetch` form uses yfinance/Yahoo where ava
 
 Use this after OpenDART for a Korean candidate, or directly for a US ticker. The market summary provider is useful for valuation and price-derived context, but it is a secondary provider and should be checked before final review. If yfinance does not provide a field, the app leaves the existing value unchanged instead of inventing one.
 
+## Default Test Universe
+
+The Candidate Screener has a `Seed default test universe` button. It adds missing placeholders for Samsung Electronics, SK Hynix, Pearl Abyss, QQQ, SMH, AAPL, and AMD, plus about 10 synthetic quality-screen candidates so the screener can be tested immediately. Existing holdings or fundamentals are not overwritten. The seeded candidate metrics are test data for workflow verification, not stock recommendations.
+
 ## Backtest Harness
 
 과거 매수 기록을 현재 룰엔진으로 replay합니다.

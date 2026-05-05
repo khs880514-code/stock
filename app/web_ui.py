@@ -30,6 +30,7 @@ from app.web.fundamental_screener import (
     handle_dart_fundamental_post,
     handle_fundamental_post,
     handle_market_fundamental_post,
+    handle_seed_test_universe_post,
     render_screener_panel,
 )
 from app.web.styles import CSS
@@ -202,6 +203,9 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
         for account in default_accounts():
             store.upsert(account)
         return "기본 계좌 설정 완료: 일반=토스증권, ISA=키움증권", ""
+
+    if path == "/seed-test-universe":
+        return handle_seed_test_universe_post(config), ""
 
     if path == "/buy-check":
         store = PortfolioStore(config.db_path, config)
