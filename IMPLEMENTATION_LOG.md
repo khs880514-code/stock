@@ -1,5 +1,48 @@
 # Stock Expert Friend v1 Implementation Log
 
+## 2026-05-05 Candidate Detail Review and User Inputs
+
+### Background
+
+- User asked Codex to proceed with whatever can be done and request only the parts the user must handle.
+- The app already had candidate screening, but the candidate row did not yet provide a compact detail review surface.
+
+### Cause
+
+- A candidate list alone still forces the user to mentally combine valuation, profitability, growth, stability, momentum, news, filings, and research notes.
+- API keys and final investment policy thresholds cannot be invented safely.
+
+### Change
+
+- Extended `후보 발굴 / Candidate Screener` with candidate detail cards.
+- Each candidate now groups available metrics into:
+  - value,
+  - profitability,
+  - growth,
+  - stability / cash flow,
+  - momentum / source.
+- Added automatic "next check" questions when metrics, news, filings, or research notes are missing.
+- Added `USER_INPUT_NEEDED.md` for user-owned decisions:
+  - API/data source choice,
+  - API keys,
+  - screener preset preferences,
+  - required manual fields,
+  - future account-level holdings migration decision.
+
+### Operating Rule
+
+- Candidate detail cards are review aids, not buy recommendations.
+- Missing data should produce questions, not hidden confidence.
+- API connection work should wait for explicit provider/key decisions.
+
+### Verification
+
+- Focused tests passed: `py -3 -m pytest tests\test_fundamentals_screener.py tests\test_file_size_guard.py tests\test_web_ui.py -q -p no:cacheprovider` passed 6 tests.
+- Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 81 tests.
+- Compile check passed after restarting the local web process: `py -3 -m compileall -q app tests`.
+- Restarted the local UI at `http://127.0.0.1:8770`.
+- Browser smoke passed for the `후보/정보` tab and `Candidate Screener` visibility. The current local DB had no stored fundamentals, so candidate detail cards are verified through tests and will show once candidates exist.
+
 ## 2026-05-05 Inventory-Web Split Lesson Applied
 
 ### Background

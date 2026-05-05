@@ -44,6 +44,14 @@ h2 { margin: 0 0 12px; font-size: 18px; }
 .news-list span { display: block; color: #6b7280; font-size: 12px; margin-top: 2px; }
 .news-list .news-flags { color: #92400e; font-weight: 700; }
 .result-note { margin-top: 10px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a; border-radius: 8px; padding: 12px; line-height: 1.5; font-size: 13px; }
+.candidate-details { margin-top: 16px; }
+.candidate-card { border: 1px solid #d9dee7; border-radius: 8px; background: #f9fafb; padding: 12px; margin-top: 10px; }
+.candidate-card summary { cursor: pointer; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.candidate-card summary span { color: #4b5563; font-size: 12px; }
+.candidate-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.factor-box { border: 1px solid #e5e7eb; background: white; border-radius: 8px; padding: 10px; }
+.factor-box > b { display: block; margin-bottom: 8px; color: #1f2937; font-size: 13px; }
+.factor-box ul { margin: 0; padding-left: 18px; color: #374151; font-size: 13px; line-height: 1.45; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; border-bottom: 1px solid #e5e7eb; padding: 9px 8px; vertical-align: top; }
 th { color: #4b5563; font-weight: 700; background: #f9fafb; }
@@ -61,6 +69,6 @@ button { min-height: 38px; border: 0; border-radius: 6px; background: #2563eb; c
 pre { white-space: pre-wrap; background: #0f172a; color: #e5e7eb; padding: 14px; border-radius: 8px; overflow-x: auto; line-height: 1.5; }
 @media (max-width: 900px) {
   main { padding: 12px; }
-  .metrics, .grid.two, .grid.three, .score-layout, .rule-context, .recent-info, .data-status, .account-panel { grid-template-columns: 1fr; }
+  .metrics, .grid.two, .grid.three, .score-layout, .rule-context, .recent-info, .data-status, .account-panel, .candidate-card-grid { grid-template-columns: 1fr; }
 }
 """

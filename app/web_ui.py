@@ -317,7 +317,7 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
     conditional_items = ConditionalDecisionStore(config.db_path).list_active(now=datetime.now(tz=KST))
     latest_news = NewsStore(config.db_path).latest(limit=12)
     latest_filings = FilingStore(config.db_path).latest(limit=12)
-    screener_candidates, candidate_context = build_screener_context(config)
+    screener_candidates, candidate_context, snapshot_by_ticker = build_screener_context(config)
     upcoming_earnings = EarningsCalendarStore(config.db_path).upcoming(
         tracked_tickers,
         datetime.now(tz=KST).date(),
@@ -380,7 +380,7 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
     </section>
     <section>
       <h2>후보 발굴 / Candidate Screener</h2>
-      {render_screener_panel(screener_candidates, candidate_context)}
+      {render_screener_panel(screener_candidates, candidate_context, snapshot_by_ticker)}
     </section>
     <section>
       <h2>데이터 상태</h2>

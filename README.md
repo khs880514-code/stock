@@ -207,6 +207,7 @@ v1 데모와 테스트는 mock 데이터로 동작합니다. yfinance/Yahoo char
 ## 구현 로그
 
 구현 과정과 설계 결정은 `IMPLEMENTATION_LOG.md`에 남겼습니다.
+사용자가 결정하거나 제공해야 하는 항목은 `USER_INPUT_NEEDED.md`에 따로 모았습니다.
 
 ## 구조 관리 원칙
 
