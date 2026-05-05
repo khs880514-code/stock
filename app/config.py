@@ -62,6 +62,7 @@ class AppConfig:
 
 
 def load_config() -> AppConfig:
+    load_env_file()
     db_path = Path(os.getenv("SEF_DB_PATH", "stock_expert_friend.sqlite3"))
     return AppConfig(
         db_path=db_path,
@@ -77,3 +78,18 @@ def load_config() -> AppConfig:
         post_run_decomp_rule_enabled=os.getenv("SEF_POST_RUN_DECOMP_RULE_ENABLED", "1") != "0",
         decision_protection_enabled=os.getenv("SEF_DECISION_PROTECTION_ENABLED", "1") != "0",
     )
+
+
+def load_env_file(path: Path | str = ".env") -> None:
+    env_path = Path(path)
+    if not env_path.exists():
+        return
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value

@@ -1,5 +1,41 @@
 # Stock Expert Friend v1 Implementation Log
 
+## 2026-05-05 API Key Readiness
+
+### Background
+
+- User provided a DART API key and SEC User-Agent and asked whether those values are enough.
+
+### Cause
+
+- The app checked `os.environ`, but local `.env` values were not loaded automatically.
+- `.env.example` still had older non-`SEF_` variable names for some data providers.
+
+### Change
+
+- Added a minimal standard-library `.env` loader in `app/config.py`.
+- Updated `.env.example` to use the app's actual environment variable names:
+  - `SEF_DART_API_KEY`
+  - `SEF_SEC_USER_AGENT`
+  - `SEF_ALPHA_VANTAGE_API_KEY`
+  - `SEF_FRED_API_KEY`
+  - `SEF_ECOS_API_KEY`
+  - `SEF_FINNHUB_API_KEY`
+- Stored the provided values only in local ignored `.env`.
+- Updated `USER_INPUT_NEEDED.md` so DART and SEC readiness are no longer listed as missing.
+
+### Operating Rule
+
+- Never commit real API keys or email-bearing User-Agent values.
+- Keep `.env` ignored and commit only `.env.example` placeholders.
+- DART/SEC readiness means credentials are available; it does not mean DART financial statement ingestion has been implemented yet.
+
+### Verification
+
+- Local `.env` contains only key names when inspected for logging.
+- `load_config()` loads `.env`; API readiness reports SEC and domestic disclosure as ready.
+- Focused test passed: `py -3 -m pytest tests\test_data_status.py -q -p no:cacheprovider` passed 3 tests.
+
 ## 2026-05-05 Candidate Detail Review and User Inputs
 
 ### Background

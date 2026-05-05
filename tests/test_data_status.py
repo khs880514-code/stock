@@ -1,5 +1,7 @@
+import os
 from datetime import date
 
+from app.config import load_env_file
 from app.data.data_status import build_api_readiness_status, build_ticker_data_status
 from app.data.earnings_calendar_store import EarningsCalendarStore, EarningsDate
 from app.data.filings_collector import FilingItem, FilingStore
@@ -66,3 +68,18 @@ def test_api_readiness_marks_unset_keys_as_tomorrow(monkeypatch):
     monkeypatch.delenv("SEF_ALPHA_VANTAGE_API_KEY", raising=False)
     statuses = {item.name: item.status for item in build_api_readiness_status()}
     assert statuses["실적 캘린더"] == "내일 연결"
+
+
+def test_load_env_file_sets_sef_keys(tmp_path, monkeypatch):
+    monkeypatch.delenv("SEF_DART_API_KEY", raising=False)
+    monkeypatch.delenv("SEF_SEC_USER_AGENT", raising=False)
+    env_path = tmp_path / ".env"
+    env_path.write_text(
+        "SEF_DART_API_KEY=test-dart\nSEF_SEC_USER_AGENT=StockExpertFriend/1.0 test@example.com\n",
+        encoding="utf-8",
+    )
+
+    load_env_file(env_path)
+
+    assert os.environ["SEF_DART_API_KEY"] == "test-dart"
+    assert os.environ["SEF_SEC_USER_AGENT"] == "StockExpertFriend/1.0 test@example.com"

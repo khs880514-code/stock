@@ -4,14 +4,14 @@ Last updated: 2026-05-05
 
 ## API / Data Connections
 
-- Decide which source to use first for automatic fundamentals:
+- Provided on 2026-05-05:
+  - DART key stored locally in ignored `.env` as `SEF_DART_API_KEY`.
+  - SEC User-Agent stored locally in ignored `.env` as `SEF_SEC_USER_AGENT`.
+- Decide which source to implement first for automatic fundamentals:
   - DART/OpenDART for Korean filings and financial statements.
   - Naver Finance-style summary data if a stable allowed path is chosen.
   - yfinance for US tickers and some market data.
-- Provide API keys only when ready:
-  - `SEF_DART_API_KEY` for OpenDART.
-  - `SEF_SEC_USER_AGENT` contact-style user agent for SEC.
-  - Optional macro/earnings keys if you want those connected later.
+- Optional macro/earnings keys if you want those connected later.
 
 ## Screener Policy
 
