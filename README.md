@@ -185,6 +185,12 @@ UI의 `후보 발굴 / Candidate Screener` 영역에서는 재무지표 입력 �
 
 현재 단계에서는 재무지표 자동 수집 API를 붙이지 않았습니다. Toss/Kiwoom 포트폴리오 동기화도 N/A 유지이며, 재무지표·포트폴리오 입력은 수동 경로를 기본으로 둡니다.
 
+## OpenDART Fundamentals
+
+The candidate screener includes an `OpenDART fundamentals fetch` form. It reads `SEF_DART_API_KEY` from the ignored local `.env`, looks up the DART corp code through `corpCode.xml`, calls `fnlttSinglAcnt`, and stores only financial-statement-derived metrics such as revenue growth, operating margin, net margin, ROE/ROA, and debt/equity.
+
+This does not fill PER/PBR, market cap, dividend yield, or price momentum. Those still require a market-price or summary provider. Toss/Kiwoom broker sync remains N/A, and portfolio input stays manual.
+
 ## Backtest Harness
 
 과거 매수 기록을 현재 룰엔진으로 replay합니다.
@@ -227,3 +233,6 @@ v1 데모와 테스트는 mock 데이터로 동작합니다. yfinance/Yahoo char
 - 수익률 보장 금지
 - 손실 보전 약속 금지
 - 금융회사처럼 보이는 표시 금지
+## Live API Status
+
+The provided DART key and SEC User-Agent are sufficient for the currently wired disclosure paths. SEC EDGAR and Google News RSS do not need paid keys; SEC only needs the User-Agent. Optional future keys are only needed for macro data, automatic earnings calendars, paid news providers, or a separate market-summary provider.

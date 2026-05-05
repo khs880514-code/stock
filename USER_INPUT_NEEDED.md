@@ -7,10 +7,11 @@ Last updated: 2026-05-05
 - Provided on 2026-05-05:
   - DART key stored locally in ignored `.env` as `SEF_DART_API_KEY`.
   - SEC User-Agent stored locally in ignored `.env` as `SEF_SEC_USER_AGENT`.
-- Decide which source to implement first for automatic fundamentals:
-  - DART/OpenDART for Korean filings and financial statements.
+- Implemented first:
+  - DART/OpenDART single-company major accounts for Korean financial-statement-derived fundamentals.
+- Remaining optional data sources:
   - Naver Finance-style summary data if a stable allowed path is chosen.
-  - yfinance for US tickers and some market data.
+  - yfinance for US tickers and market-price-derived valuation/momentum data.
 - Optional macro/earnings keys if you want those connected later.
 
 ## Screener Policy

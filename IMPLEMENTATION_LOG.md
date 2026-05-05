@@ -903,3 +903,43 @@
 - Full regression passed: `py -3 -m pytest -p no:cacheprovider` passed 79 tests.
 - Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 confirmed and the rendered page contains `Candidate Screener` and the fundamental input form.
 - CLI smoke passed: `py -3 -m app.main --screen-stocks` returned an empty candidate list when no fundamentals are stored.
+## 2026-05-05 OpenDART Fundamentals Adapter
+
+### Background
+
+- User provided the DART API key and SEC User-Agent and asked to proceed with the remaining API-connection work while leaving broker sync manual.
+- The candidate screener needed a non-manual path for Korean financial-statement data without turning the tool into an auto-trading system.
+
+### Cause
+
+- The screener could filter saved fundamentals, but Korean fundamentals still required manual entry.
+- OpenDART exposes corporation code lookup through `corpCode.xml` and single-company major accounts through `fnlttSinglAcnt`, which is enough for conservative first-pass statement-derived metrics.
+
+### Change
+
+- Added `app/data/opendart_fundamentals.py`.
+- Added OpenDART corp-code lookup, single-company major-account fetch, account parsing, and `stock_fundamentals` upsert.
+- Added a Candidate Screener UI form: `OpenDART fundamentals fetch`.
+- Added tests for corp-code parsing, metric mapping, persistence, and the web POST path.
+- Updated `README.md` and `USER_INPUT_NEEDED.md` to show DART is now the first implemented fundamentals source.
+
+### 사전에 없는 임의 결정
+
+- Raw six-digit Korean tickers entered without a suffix are stored as `.KS` by default. If KOSDAQ suffix distinction matters later, add a market suffix selector before broad use.
+- OpenDART `fnlttSinglAcnt` rows are mapped only to direct statement-derived metrics: revenue growth, operating-income growth, operating/net margin, ROE/ROA, and debt/equity.
+- PER, PBR, market cap, dividend yield, FCF yield, and momentum remain blank because they need market-price or separate summary data.
+- Consolidated financial statements (`CFS`) are preferred over separate statements (`OFS`) when both are present.
+
+### Operating Rule
+
+- OpenDART fills candidate fundamentals for comparison and review only.
+- The app must keep showing that `PASS` means "review candidate", not "buy".
+- Toss/Kiwoom broker sync remains N/A; portfolio input stays manual.
+
+### Verification
+
+- Focused tests passed: `py -3 -m pytest tests\test_opendart_fundamentals.py tests\test_fundamentals_screener.py tests\test_web_ui.py tests\test_file_size_guard.py -q -p no:cacheprovider` passed 9 tests.
+- Compile check passed: `py -3 -m compileall -q app tests`.
+- Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 85 tests.
+- Live OpenDART smoke passed for `005930.KS` and `000660.KS` using the local ignored `.env`; no key value was printed or committed.
+- Restarted the local UI at `http://127.0.0.1:8770`; HTTP 200 confirmed and the in-app browser found `OpenDART fundamentals fetch`, `005930.KS`, and `000660.KS`.

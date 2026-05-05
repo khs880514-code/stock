@@ -25,7 +25,12 @@ from app.engines.buy_check_mode import review_buy_request
 from app.engines.news_flags import classify_headline, summarize_news_flags
 from app.journal.trade_journal import TradeJournal
 from app.models import BuyReviewRequest, ConditionalDecision, Holding, MistakeType, TickerSensitivitySnapshot, TradeEntry
-from app.web.fundamental_screener import build_screener_context, handle_fundamental_post, render_screener_panel
+from app.web.fundamental_screener import (
+    build_screener_context,
+    handle_dart_fundamental_post,
+    handle_fundamental_post,
+    render_screener_panel,
+)
 from app.web.styles import CSS
 from app.web.tabs import render_tab_nav, render_tab_script
 
@@ -287,6 +292,9 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
 
     if path == "/fundamental":
         return handle_fundamental_post(config, form), ""
+
+    if path == "/dart-fundamental":
+        return handle_dart_fundamental_post(config, form), ""
 
     if path == "/research-note":
         note_id = ResearchNotesStore(config.db_path).add(

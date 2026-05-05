@@ -8,6 +8,7 @@ from app.config import AppConfig
 from app.data.filings_collector import FilingStore
 from app.data.fundamentals_store import FundamentalSnapshot, FundamentalsStore
 from app.data.news_store import NewsStore
+from app.data.opendart_fundamentals import update_from_opendart
 from app.data.research_notes_store import ResearchNotesStore
 from app.engines.stock_screener import ScreenerCandidate, screen
 
@@ -50,6 +51,21 @@ def handle_fundamental_post(config: AppConfig, form: dict[str, str]) -> str:
     )
     FundamentalsStore(config.db_path).upsert(snapshot)
     return f"후보 재무지표 저장 완료: {snapshot.ticker.upper()}"
+
+
+def handle_dart_fundamental_post(config: AppConfig, form: dict[str, str]) -> str:
+    ticker = form.get("ticker", "").strip()
+    bsns_year = int(form.get("bsns_year") or datetime.now(tz=KST).year - 1)
+    reprt_code = form.get("reprt_code", "11011")
+    sector_tag = form.get("sector_tag", "UNKNOWN")
+    snapshot = update_from_opendart(
+        config.db_path,
+        ticker=ticker,
+        bsns_year=bsns_year,
+        reprt_code=reprt_code,
+        sector_tag=sector_tag,
+    )
+    return f"OpenDART fundamentals saved: {snapshot.ticker} {snapshot.company_name}"
 
 
 def build_screener_context(
@@ -95,7 +111,17 @@ def _candidate_context_counts(config: AppConfig, candidates: list[ScreenerCandid
 
 
 def _fundamental_form() -> str:
-    return """<form method="post" action="/fundamental">
+    dart_year = datetime.now(tz=KST).year - 1
+    current_year = datetime.now(tz=KST).year
+    return f"""<div class="stacked-forms">
+<form method="post" action="/dart-fundamental">
+  <label>OpenDART ticker<input name="ticker" value="005930.KS" required></label>
+  <div class="row"><label>Business year<input name="bsns_year" type="number" value="{dart_year}" min="2015" max="{current_year}"></label><label>Report<select name="reprt_code"><option value="11011">Annual 11011</option><option value="11013">Q1 11013</option><option value="11012">Half 11012</option><option value="11014">Q3 11014</option></select></label></div>
+  <label>Sector tag<input name="sector_tag" value="AI_SEMICONDUCTOR"></label>
+  <button>OpenDART fundamentals fetch</button>
+  <p class="form-note">OpenDART key is read from local .env. This fills reported profitability/growth/stability fields; PER/PBR still need market-price data.</p>
+</form>
+<form method="post" action="/fundamental">
   <label>종목<input name="ticker" value="005930.KS" required></label>
   <div class="row"><label>시장<select name="market"><option>KR</option><option>US</option></select></label><label>통화<select name="currency"><option>KRW</option><option>USD</option></select></label></div>
   <div class="row"><label>회사명<input name="company_name" value="삼성전자"></label><label>섹터 태그<input name="sector_tag" value="AI_SEMICONDUCTOR"></label></div>
@@ -112,7 +138,8 @@ def _fundamental_form() -> str:
   <div class="row"><label>FCF Yield %<input name="fcf_yield_pct" type="number" step="0.01"></label><label>3M 모멘텀 %<input name="price_momentum_3m_pct" type="number" step="0.01"></label></div>
   <div class="row"><label>12M 모멘텀 %<input name="price_momentum_12m_pct" type="number" step="0.01"></label><label>메모<input name="notes" placeholder="확인한 출처/주의점"></label></div>
   <button>재무지표 저장</button>
-</form>"""
+</form>
+</div>"""
 
 
 def _candidate_table(candidates: list[ScreenerCandidate], candidate_context: dict[str, dict[str, int]]) -> str:
