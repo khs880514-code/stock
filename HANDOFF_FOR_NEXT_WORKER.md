@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-06
 
+## Latest Update: Automatic Candidate Shortlist
+
+- `3 Candidate Screener` now starts with an automatic candidate collection panel.
+- The user can collect 10, 20, or 30 review candidates without manually typing financial metrics first.
+- The curated universe lives in `app/data/review_universe.py` and currently covers 28 Korean large-cap, US mega-cap tech, semiconductor, and ETF names.
+- `/auto-candidates` refreshes market/fundamental summaries through the existing provider path and collects Google News RSS for the selected count.
+- Manual/DART/market/manual financial inputs are still available, but now sit behind an expandable advanced section.
+- This is still a review shortlist only. It must not be presented as a buy recommendation or auto-trading signal.
+- Known limitation: this is not a full-market scan and does not use broker real-time quotes. Expanding beyond the curated universe should wait until provider reliability, stale thresholds, and overwrite policy are decided.
+
 ## Project Identity
 
 Stock Expert Friend is an information, logging, review, and decision-support tool. It is not an auto-trading system, not a guaranteed recommendation engine, and not a replacement for the user's final judgment.

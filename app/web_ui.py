@@ -29,6 +29,7 @@ from app.web.beginner_guide import render_tab_intro, render_workflow_guide
 from app.web.data_status_panel import render_data_status_panel
 from app.web.fundamental_screener import (
     build_screener_context,
+    handle_auto_candidates_post,
     handle_dart_fundamental_post,
     handle_fundamental_post,
     handle_market_fundamental_post,
@@ -230,6 +231,9 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
 
     if path == "/seed-test-universe":
         return handle_seed_test_universe_post(config), ""
+
+    if path == "/auto-candidates":
+        return handle_auto_candidates_post(config, form), ""
 
     if path == "/buy-check":
         store = PortfolioStore(config.db_path, config)

@@ -1,5 +1,46 @@
 # Stock Expert Friend v1 Implementation Log
 
+## 2026-05-06 Automatic Candidate Shortlist
+
+### Background
+
+- User clarified that the candidate screen should not require manual financial input before useful candidates appear.
+- Desired daily flow is to collect 10-30 review candidates from today's market/news context, then compare and review them before any buy-check.
+
+### Cause
+
+- The previous `3 Candidate Screener` screen still centered on manual/DART/market-summary input forms.
+- That made the tool feel like a data-entry screen instead of a shortlist generator for a beginner user.
+
+### Change
+
+- Added `app/data/review_universe.py` with a curated 28-name review universe covering Korean large caps, US mega-cap tech, semiconductors, and ETF exposure.
+- Added an automatic candidate collection action for 10, 20, or 30 names.
+- The automatic action refreshes market/fundamental summaries through the existing market-data path and collects Google News RSS items for those tickers.
+- Added `/auto-candidates` handling in the web UI.
+- Moved the long manual financial-entry controls under an expandable `Direct input / advanced collection` panel.
+- Kept candidate output as a review shortlist, not a buy recommendation.
+
+### Arbitrary Decisions Not In Prior Spec
+
+- Used a curated first-pass universe instead of a full KRX/Nasdaq market scan. Full-market screening needs a stable data provider, rate-limit policy, and better source metadata before it is safe for daily beginner use.
+- Chose 20 names as the default because it sits inside the user's requested 10-30 range and is small enough to review manually.
+- Continued using yfinance/Yahoo-style market data and Google News RSS. These are delayed/convenience sources, not broker-grade real-time quotes.
+- Treated generated candidates as `review candidates`; they must still go through information freshness checks, portfolio exposure checks, and buy-check before action.
+
+### Operating Rule
+
+- The candidate tab should first help the user create a shortlist automatically.
+- Manual financial entry remains available only as an advanced correction/enrichment path.
+- A shortlist entry must never be interpreted as permission to buy.
+
+### Verification
+
+- Compile check passed: `py -3 -m compileall -q app tests`.
+- Focused tests passed: `py -3 -m pytest tests\test_review_universe.py tests\test_fundamentals_screener.py tests\test_web_ui.py tests\test_file_size_guard.py -q -p no:cacheprovider` passed 9 tests.
+- Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 94 tests.
+- Restarted the local UI at `http://127.0.0.1:8770`; in-app browser checks confirmed the candidate tab shows automatic candidate collection, today candidate auto collect, 20-name default, and the advanced manual-entry disclosure.
+
 ## 2026-05-05 API Key Readiness
 
 ### Background

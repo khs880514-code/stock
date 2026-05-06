@@ -12,6 +12,7 @@ from app.data.market_fundamentals import update_market_fundamentals
 from app.data.news_store import NewsStore
 from app.data.opendart_fundamentals import update_from_opendart
 from app.data.research_notes_store import ResearchNotesStore
+from app.data.review_universe import collect_review_universe
 from app.engines.stock_screener import ScreenerCandidate, screen
 from app.web.ticker_search import ticker_input
 
@@ -93,6 +94,16 @@ def handle_seed_test_universe_post(config: AppConfig) -> str:
     )
 
 
+def handle_auto_candidates_post(config: AppConfig, form: dict[str, str]) -> str:
+    count = int(form.get("candidate_count") or 20)
+    result = collect_review_universe(config, count=count, today=datetime.now(tz=KST).date())
+    failed = f" / 실패 {', '.join(result.failed)}" if result.failed else ""
+    return (
+        f"오늘 후보 자동 수집 완료: 요청 {result.requested}개, "
+        f"시장정보 {result.fundamentals_updated}개, 뉴스 {result.news_added}개{failed}"
+    )
+
+
 def build_screener_context(
     config: AppConfig,
 ) -> tuple[list[ScreenerCandidate], dict[str, dict[str, int]], dict[str, FundamentalSnapshot]]:
@@ -109,8 +120,13 @@ def render_screener_panel(
 ) -> str:
     return f"""<div class="grid two">
   <div>
-    <h3>재무지표 입력</h3>
+    <h3>자동 후보 수집</h3>
+    {_auto_candidates_form()}
+    <details class="advanced-panel">
+      <summary>직접 입력 / 고급 수집 펼치기</summary>
+      <h3>재무지표 입력</h3>
     {_fundamental_form()}
+    </details>
   </div>
   <div>
     <h3>후보 판정 결과</h3>
@@ -133,6 +149,14 @@ def _candidate_context_counts(config: AppConfig, candidates: list[ScreenerCandid
             "research": len(research_store.latest(item.ticker, limit=5)),
         }
     return counts
+
+
+def _auto_candidates_form() -> str:
+    return """<form method="post" action="/auto-candidates">
+  <label>몇 개를 자동으로 모을까요?<select name="candidate_count"><option value="20">20개</option><option value="10">10개</option><option value="30">30개</option></select></label>
+  <button>오늘 후보 자동 수집</button>
+  <p class="form-note">국내 대형주, 미국 빅테크/반도체/ETF 후보를 자동으로 훑어 시장정보와 뉴스를 저장합니다. 매수 추천이 아니라 검토 후보 만들기입니다.</p>
+</form>"""
 
 
 def _fundamental_form() -> str:

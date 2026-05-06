@@ -132,6 +132,8 @@ def test_fundamental_cli_and_web_flow(tmp_path):
 
     html = render_dashboard(config)
     assert "후보 찾기" in html
+    assert "오늘 후보 자동 수집" in html
+    assert 'action="/auto-candidates"' in html
     assert "후보 판정 결과" in html
     assert "종목별 상세 검토" in html
     assert "다음 확인" in html
