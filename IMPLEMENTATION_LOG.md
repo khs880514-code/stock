@@ -41,6 +41,45 @@
 - Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 94 tests.
 - Restarted the local UI at `http://127.0.0.1:8770`; in-app browser checks confirmed the candidate tab shows automatic candidate collection, today candidate auto collect, 20-name default, and the advanced manual-entry disclosure.
 
+## 2026-05-06 Beginner Candidate Explanation
+
+### Background
+
+- User agreed to proceed with making candidate results explain why a ticker appears instead of showing only raw metrics and scores.
+- Beginner workflow needs immediate guidance on what to look at next after an automatic candidate list is generated.
+
+### Cause
+
+- Candidate rows had score, raw reason strings, missing fields, and linked counts, but did not translate them into a beginner-friendly interpretation.
+- Users could still read `PASS` or high score as a buy signal unless the table itself explained the next step.
+
+### Change
+
+- Added `app/web/candidate_explainer.py` to convert existing screener output into:
+  - one-line reason,
+  - next action,
+  - beginner review questions.
+- Added a `One-line interpretation` column to the candidate result table.
+- Added a `Beginner interpretation` box inside each candidate detail card.
+- Kept the stock-screener scoring and rule-engine logic unchanged.
+
+### Arbitrary Decisions Not In Prior Spec
+
+- Explanations use broad categories such as valuation burden, profitability, debt burden, growth, and price trend instead of rewriting every metric formula in the table. This keeps the candidate screen readable.
+- The next action always routes real decisions toward information refresh, external research, or `4 Buy-check`; it never says to buy.
+
+### Operating Rule
+
+- Candidate screens should explain what a row means and what the user should check next.
+- Explanation text is display guidance only; it must not change scores, statuses, or rule-engine outcomes.
+
+### Verification
+
+- Compile check passed: `py -3 -m compileall -q app tests`.
+- Focused tests passed: `py -3 -m pytest tests\test_candidate_explainer.py tests\test_fundamentals_screener.py tests\test_file_size_guard.py -q -p no:cacheprovider` passed 7 tests.
+- Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 96 tests.
+- Restarted the local UI at `http://127.0.0.1:8770`; in-app browser checks confirmed `one-line interpretation`, `next action`, `4 buy-check`, and detail-card beginner interpretation text render in the candidate tab.
+
 ## 2026-05-05 API Key Readiness
 
 ### Background

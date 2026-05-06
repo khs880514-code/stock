@@ -65,7 +65,12 @@ h2 { margin: 0 0 12px; font-size: 18px; }
 .candidate-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
 .factor-box { border: 1px solid #e5e7eb; background: white; border-radius: 8px; padding: 10px; }
 .factor-box > b { display: block; margin-bottom: 8px; color: #1f2937; font-size: 13px; }
+.factor-box p { margin: 0 0 8px; color: #374151; font-size: 13px; line-height: 1.45; }
 .factor-box ul { margin: 0; padding-left: 18px; color: #374151; font-size: 13px; line-height: 1.45; }
+.explain-box { border-color: #bfdbfe; background: #eff6ff; }
+.candidate-explain { min-width: 190px; color: #1f2937; line-height: 1.45; }
+.candidate-explain b { display: block; font-size: 13px; }
+.candidate-explain span { color: #4b5563; font-size: 12px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; border-bottom: 1px solid #e5e7eb; padding: 9px 8px; vertical-align: top; }
 th { color: #4b5563; font-weight: 700; background: #f9fafb; }

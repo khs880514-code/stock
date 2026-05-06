@@ -9,6 +9,8 @@ Last updated: 2026-05-06
 - The curated universe lives in `app/data/review_universe.py` and currently covers 28 Korean large-cap, US mega-cap tech, semiconductor, and ETF names.
 - `/auto-candidates` refreshes market/fundamental summaries through the existing provider path and collects Google News RSS for the selected count.
 - Manual/DART/market/manual financial inputs are still available, but now sit behind an expandable advanced section.
+- Candidate rows now include beginner-friendly one-line interpretation and next-action text from `app/web/candidate_explainer.py`.
+- Candidate detail cards include a beginner interpretation box before the raw factor boxes.
 - This is still a review shortlist only. It must not be presented as a buy recommendation or auto-trading signal.
 - Known limitation: this is not a full-market scan and does not use broker real-time quotes. Expanding beyond the curated universe should wait until provider reliability, stale thresholds, and overwrite policy are decided.
 

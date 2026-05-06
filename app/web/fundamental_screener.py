@@ -14,6 +14,7 @@ from app.data.opendart_fundamentals import update_from_opendart
 from app.data.research_notes_store import ResearchNotesStore
 from app.data.review_universe import collect_review_universe
 from app.engines.stock_screener import ScreenerCandidate, screen
+from app.web.candidate_explainer import explain_candidate, review_questions
 from app.web.ticker_search import ticker_input
 
 
@@ -223,7 +224,7 @@ def _candidate_table(candidates: list[ScreenerCandidate], candidate_context: dic
             f"""<div class="candidate-group">
   <h4>{_e(title)} <span>{len(items)}개</span></h4>
   <p class="form-note">{_e(note)}</p>
-  <table><thead><tr><th>판정</th><th>종목</th><th>점수</th><th>근거</th><th>주의/부족</th><th>연결 정보</th></tr></thead><tbody>{rows}</tbody></table>
+  <table><thead><tr><th>판정</th><th>종목</th><th>한줄 해석</th><th>점수</th><th>근거</th><th>주의/부족</th><th>연결 정보</th></tr></thead><tbody>{rows}</tbody></table>
 </div>"""
         )
     return "".join(sections)
@@ -231,12 +232,14 @@ def _candidate_table(candidates: list[ScreenerCandidate], candidate_context: dic
 
 def _candidate_row(item: ScreenerCandidate, context: dict[str, int]) -> str:
     reasons = "<br>".join(_e(reason) for reason in item.reasons[:3]) or "-"
+    why, next_step = explain_candidate(item, context)
     cautions = "<br>".join(_e(caution) for caution in item.cautions[:2])
     missing = ", ".join(item.missing_metrics[:5])
     caution_text = "<br>".join(part for part in [cautions, _e(f"부족: {missing}") if missing else ""] if part) or "-"
     linked = f"뉴스 {context['news']} / 공시 {context['filings']} / 리서치 {context['research']}"
     return (
         f'<tr class="{_row_class(item.status)}"><td>{_status_badge(item.status)}</td><td>{_e(item.ticker)}<br><span>{_e(item.company_name or item.sector_tag)}</span></td>'
+        f'<td class="candidate-explain"><b>{_e(why)}</b><br><span>{_e(next_step)}</span></td>'
         f"<td>{item.score}<br><span>입력 {item.data_points}개</span></td><td>{reasons}</td><td>{caution_text}</td><td>{_e(linked)}</td></tr>"
     )
 
@@ -262,10 +265,12 @@ def _candidate_detail_cards(
 def _candidate_detail_card(item: ScreenerCandidate, snapshot: FundamentalSnapshot | None, context: dict[str, int]) -> str:
     if snapshot is None:
         return ""
-    questions = _review_questions(item, context)
+    why, next_step = explain_candidate(item, context)
+    questions = review_questions(item, context)
     return f"""<details class="candidate-card">
   <summary><b>{_e(item.ticker)}</b> {_e(snapshot.company_name or item.sector_tag)} <span>{_e(_status_label(item.status))} / 점수 {item.score}</span></summary>
   <div class="candidate-card-grid">
+    <div class="factor-box explain-box"><b>초보자 해석</b><p>{_e(why)}</p><p>{_e(next_step)}</p></div>
     {_factor_box("가치", [("PER", snapshot.per), ("예상 PER", snapshot.forward_per), ("PBR", snapshot.pbr), ("PSR", snapshot.psr), ("EV/EBITDA", snapshot.ev_ebitda)])}
     {_factor_box("수익성", [("ROE %", snapshot.roe_pct), ("ROA %", snapshot.roa_pct), ("ROIC %", snapshot.roic_pct), ("영업이익률 %", snapshot.operating_margin_pct), ("순이익률 %", snapshot.net_margin_pct)])}
     {_factor_box("성장", [("매출 성장률 %", snapshot.revenue_growth_pct), ("EPS 성장률 %", snapshot.eps_growth_pct), ("영업이익 성장률 %", snapshot.operating_income_growth_pct)])}
@@ -280,23 +285,6 @@ def _candidate_detail_card(item: ScreenerCandidate, snapshot: FundamentalSnapsho
 def _factor_box(title: str, rows: list[tuple[str, object]]) -> str:
     values = "".join(f"<tr><th>{_e(label)}</th><td>{_e(_fmt(value))}</td></tr>" for label, value in rows)
     return f'<div class="factor-box"><b>{_e(title)}</b><table><tbody>{values}</tbody></table></div>'
-
-
-def _review_questions(item: ScreenerCandidate, context: dict[str, int]) -> list[str]:
-    questions: list[str] = []
-    if item.cautions:
-        questions.append(f"주의 사유 확인: {item.cautions[0]}")
-    if item.missing_metrics:
-        questions.append(f"부족 지표 보강: {', '.join(item.missing_metrics[:4])}")
-    if context.get("news", 0) == 0:
-        questions.append("최근 뉴스 업데이트 후 실적/규제/수주/경쟁사 이슈 확인")
-    if context.get("filings", 0) == 0:
-        questions.append("최근 공시 또는 사업보고서 확인")
-    if context.get("research", 0) == 0:
-        questions.append("외부 리서치/NotebookLM 요약 또는 반대 근거 메모 추가")
-    if not questions:
-        questions.append("뉴스·공시·리서치와 재무지표가 서로 모순되지 않는지 최종 비교")
-    return questions[:5]
 
 
 def _fmt(value: object) -> str:
