@@ -73,6 +73,8 @@ tr.candidate-test td { background: #f3f4f6; color: #6b7280; }
 .status-badge { display: inline-block; border-radius: 999px; padding: 2px 8px; background: #e0f2fe; color: #075985; font-size: 12px; font-weight: 700; }
 .status-badge.test { background: #e5e7eb; color: #4b5563; }
 form { display: grid; gap: 10px; }
+.inline-form { display: inline; }
+.danger-button { min-height: 30px; background: #dc2626; padding: 0 10px; font-size: 12px; }
 label { display: grid; gap: 5px; color: #374151; font-size: 13px; }
 input, select, textarea { width: 100%; min-height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 9px; font: inherit; }
 textarea { min-height: 72px; resize: vertical; }
@@ -80,6 +82,7 @@ button { min-height: 38px; border: 0; border-radius: 6px; background: #2563eb; c
 .tab-button { flex: 0 0 auto; min-height: 36px; border: 1px solid #cbd5e1; border-radius: 999px; background: white; color: #374151; padding: 0 14px; font-weight: 700; cursor: pointer; }
 .tab-button.active { border-color: #2563eb; background: #2563eb; color: white; }
 .form-note { margin: -2px 0 0; color: #6b7280; font-size: 12px; line-height: 1.45; }
+.input-help, .subtle { color: #6b7280; font-size: 12px; line-height: 1.35; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .notice { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
 .empty { color: #6b7280; margin: 0; }

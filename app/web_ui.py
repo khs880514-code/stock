@@ -16,7 +16,7 @@ from app.data.earnings_calendar_store import EarningsCalendarStore, EarningsDate
 from app.data.filings_collector import FilingStore, SecFilingsCollector
 from app.data.news_store import GoogleNewsRssCollector, NewsStore
 from app.data.price_history import PriceHistoryStore
-from app.data.portfolio_store import PortfolioStore
+from app.data.portfolio_store import PortfolioStore, holding_value_krw
 from app.data.research_notes_store import ResearchNote, ResearchNotesStore
 from app.data.ticker_sensitivity import TickerSensitivityStore
 from app.data.watchlist_store import WatchlistStore
@@ -37,6 +37,8 @@ from app.web.fundamental_screener import (
 )
 from app.web.styles import CSS
 from app.web.tabs import render_tab_nav, render_tab_script
+from app.web.portfolio_panel import render_holdings_table
+from app.web.ticker_search import render_ticker_datalist, render_ticker_script, ticker_input, ticker_list_input
 
 
 KST = ZoneInfo("Asia/Seoul")
@@ -93,9 +95,21 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
     if path == "/holding":
         store = PortfolioStore(config.db_path, config)
         avg_price = _float(form, "avg_price")
-        current_price = _float(form, "current_price") or avg_price
+        ticker = form.get("ticker", "").upper().strip()
+        current_price_text = form.get("current_price", "").strip()
+        price_note = "입력 현재가 사용"
+        if current_price_text:
+            current_price = float(current_price_text)
+        else:
+            latest_price = _fetch_latest_price_for_holding(config, ticker)
+            if latest_price is not None:
+                current_price = latest_price.close
+                price_note = f"최신 저장가 반영: {latest_price.close:g} {latest_price.date.isoformat()}"
+            else:
+                current_price = avg_price
+                price_note = "현재가를 가져오지 못해 평단을 임시 현재가로 사용"
         holding = Holding(
-            ticker=form.get("ticker", ""),
+            ticker=ticker,
             account_key=form.get("account_key", "GENERAL_TOSS"),
             market=form.get("market", "US"),
             quantity=_float(form, "quantity"),
@@ -106,7 +120,15 @@ def handle_post(path: str, config: AppConfig, form: dict[str, str]) -> tuple[str
             sector_tag=form.get("sector_tag", "UNKNOWN").upper(),
         )
         store.save_holding(holding)
-        return f"보유종목 저장 완료: {holding.ticker}", ""
+        value_krw = int(holding_value_krw(holding, config.fx_usd_krw))
+        return f"보유종목 저장 완료: {holding.ticker} / {holding.quantity:g}주 / 평가 {value_krw:,}원 / {price_note}", ""
+
+    if path == "/delete-holding":
+        ticker = form.get("ticker", "").upper().strip()
+        deleted = PortfolioStore(config.db_path, config).delete_holding(ticker)
+        if deleted:
+            return f"보유종목 삭제 완료: {ticker}", ""
+        return f"삭제할 보유종목을 찾지 못했습니다: {ticker}", ""
 
     if path == "/trade":
         journal = TradeJournal(config.db_path)
@@ -369,6 +391,7 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
   <main>
     {_notice(notice)}
     {render_tab_nav()}
+    {render_ticker_datalist()}
     <section class="metrics tab-panel" data-tab-panel="overview">
       {_metric("총 평가액", f"{portfolio.total_value_krw:,}원")}
       {_metric("현금", f"{portfolio.cash_krw:,}원 ({cash_pct:.1f}%)")}
@@ -423,7 +446,7 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
     </section>
     <section class="tab-panel" data-tab-panel="buy-review">
       <h2>현재 보유 상태</h2>
-      {_holdings_table(portfolio.holdings)}
+      {render_holdings_table(portfolio.holdings, config)}
     </section>
     <section class="tab-panel" data-tab-panel="buy-review">
       <h2>룰엔진 판단 기준</h2>
@@ -465,6 +488,8 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
       </div>
     </section>
     <section class="tab-panel" data-tab-panel="portfolio">
+      <h2>현재 보유종목 수정/삭제</h2>
+      {render_holdings_table(portfolio.holdings, config)}
       <h2>관심종목</h2>
       {_watchlist_table(watch_items)}
     </section>
@@ -482,6 +507,7 @@ def render_dashboard(config: AppConfig, notice: str = "", decision_message: str 
     </section>
   </main>
   {render_tab_script()}
+  {render_ticker_script()}
 </body>
 </html>"""
 
@@ -494,8 +520,8 @@ def _cash_form(cash: int) -> str:
 
 
 def _holding_form() -> str:
-    return """<form method="post" action="/holding">
-  <label>종목<input name="ticker" value="AAPL" required></label>
+    return f"""<form method="post" action="/holding">
+  {ticker_input("종목", "AAPL")}
   <label>계좌<select name="account_key"><option value="GENERAL_TOSS">일반 - 토스증권</option><option value="ISA_KIWOOM">ISA - 키움증권</option></select></label>
   <div class="row"><label>시장<select name="market"><option>US</option><option>KR</option></select></label><label>통화<select name="currency"><option>USD</option><option>KRW</option></select></label></div>
   <div class="row"><label>수량<input name="quantity" type="number" step="0.0001" required></label><label>평단<input name="avg_price" type="number" step="0.0001" required></label></div>
@@ -506,8 +532,8 @@ def _holding_form() -> str:
 
 
 def _watch_form() -> str:
-    return """<form method="post" action="/watch">
-  <label>종목<input name="ticker" value="AMD" required></label>
+    return f"""<form method="post" action="/watch">
+  {ticker_input("종목", "AMD")}
   <div class="row"><label>시장<select name="market"><option>US</option><option>KR</option></select></label><label>우선순위<input name="priority" type="number" value="2" min="1" max="5"></label></div>
   <label>섹터 태그<input name="sector_tag" value="AI_SEMICONDUCTOR"></label>
   <label>관찰 사유<textarea name="reason" required>실적 발표 후 재검토</textarea></label>
@@ -522,7 +548,7 @@ def _sensitivity_form() -> str:
   <p class="form-note">실제 관측값이 아니라 시뮬레이션용 출발점입니다. 외국인 지분과 상관 관측일은 비워두며, 확인 후 직접 덮어쓰세요.</p>
 </form>
 <form method="post" action="/sensitivity">
-  <label>종목<input name="ticker" value="005930.KS" required></label>
+  {ticker_input("종목", "005930.KS")}
   <div class="row"><label>시장<select name="market"><option>KR</option><option>US</option></select></label><label>섹터 태그<input name="sector_tag" value="AI_SEMICONDUCTOR"></label></div>
   <div class="row"><label>미국 프록시<input name="proxy" value="SMH"></label><label>외국인 지분 %<input name="foreign_pct" type="number" step="0.01" placeholder="53.0"></label></div>
   <div class="row"><label>미국 섹터 상관<input name="sector_corr" type="number" step="0.01" placeholder="0.78"></label><label>KOSPI 베타<input name="beta_kospi" type="number" step="0.01" placeholder="1.00"></label></div>
@@ -549,22 +575,22 @@ def _sensitivity_table(items) -> str:
 
 
 def _blackout_form() -> str:
-    return """<div class="stacked-forms">
+    return f"""<div class="stacked-forms">
   <form method="post" action="/blackout">
-    <label>블랙아웃 종목<input name="ticker" value="005930.KS" required></label>
+    {ticker_input("블랙아웃 종목", "005930.KS")}
     <div class="row"><label>해제일<input name="until_date" type="date"></label><label>사유<input name="reason" value="후회 추격 방지"></label></div>
     <button>관찰 블랙아웃 설정</button>
   </form>
   <form method="post" action="/clear-blackout">
-    <label>해제 종목<input name="ticker" value="005930.KS" required></label>
+    {ticker_input("해제 종목", "005930.KS")}
     <button>블랙아웃 해제</button>
   </form>
 </div>"""
 
 
 def _conditional_form() -> str:
-    return """<form method="post" action="/conditional">
-  <label>조건부 종목<input name="ticker" value="005930.KS" required></label>
+    return f"""<form method="post" action="/conditional">
+  {ticker_input("조건부 종목", "005930.KS")}
   <label>조건<textarea name="condition" required>외국인 순매수와 섹터 프록시 강세가 동시에 확인되면 재검토</textarea></label>
   <div class="row"><label>계획 행동<select name="planned_action"><option>WATCH</option><option>SMALL_BUY_CANDIDATE</option><option>NO_TRADE</option></select></label><label>만료일<input name="until_date" type="date"></label></div>
   <label>메모<textarea name="note"></textarea></label>
@@ -627,8 +653,8 @@ def _accounts_table(accounts) -> str:
 
 
 def _earnings_form() -> str:
-    return """<form method="post" action="/earnings">
-  <label>종목<input name="ticker" value="AMD" required></label>
+    return f"""<form method="post" action="/earnings">
+  {ticker_input("종목", "AMD")}
   <div class="row"><label>실적일<input name="earnings_date" type="date" required></label><label>출처<input name="source" value="Investor Relations"></label></div>
   <label>출처 URL<input name="source_url" placeholder="https://..."></label>
   <label>메모<textarea name="note" placeholder="확정/예상 여부, 장전/장후 등"></textarea></label>
@@ -637,8 +663,8 @@ def _earnings_form() -> str:
 
 
 def _research_form() -> str:
-    return """<form method="post" action="/research-note">
-  <label>종목들<input name="tickers" value="AMD,AAPL" required></label>
+    return f"""<form method="post" action="/research-note">
+  {ticker_list_input("종목들", "AMD,AAPL")}
   <div class="row"><label>자료 유형<select name="source_type"><option>NOTEBOOKLM</option><option>YOUTUBE</option><option>ARTICLE</option><option>USER_NOTE</option></select></label><label>신뢰도<select name="reliability"><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label></div>
   <label>출처명<input name="source_name" value="김지윤의 지식플레이"></label>
   <label>출처 URL<input name="source_url" placeholder="https://..."></label>
@@ -650,8 +676,8 @@ def _research_form() -> str:
 
 
 def _trade_form() -> str:
-    return """<form method="post" action="/trade">
-  <label>종목<input name="ticker" value="AAPL" required></label>
+    return f"""<form method="post" action="/trade">
+  {ticker_input("종목", "AAPL")}
   <label>계좌<select name="account_key"><option value="GENERAL_TOSS">일반 - 토스증권</option><option value="ISA_KIWOOM">ISA - 키움증권</option></select></label>
   <div class="row"><label>행동<select name="trade_action"><option>BUY</option><option>SELL</option><option>HOLD</option></select></label><label>수량<input name="quantity" type="number" step="0.0001" required></label></div>
   <div class="row"><label>평균가<input name="avg_price" type="number" step="0.0001" required></label><label>진입가<input name="price_at_entry" type="number" step="0.0001"></label></div>
@@ -663,8 +689,8 @@ def _trade_form() -> str:
 
 
 def _buy_check_form() -> str:
-    return """<form method="post" action="/buy-check">
-  <label>종목<input name="ticker" value="AMD" required></label>
+    return f"""<form method="post" action="/buy-check">
+  {ticker_input("종목", "AMD")}
   <label>검토 금액 KRW<input name="amount_krw" type="number" value="1000000" required></label>
   <label>검토 계좌<select name="account_key"><option value="GENERAL_TOSS">일반 - 토스증권</option><option value="ISA_KIWOOM">ISA - 키움증권</option></select></label>
   <div class="row"><label>FOMO<input name="fomo" type="number" min="0" max="10" value="5"></label><label>외부 영향<input name="influence" type="number" min="0" max="10" value="1"></label></div>
@@ -865,16 +891,6 @@ def _research_notes_list(items) -> str:
     return f'<ul class="news-list">{rows}</ul>'
 
 
-def _holdings_table(holdings) -> str:
-    if not holdings:
-        return '<p class="empty">보유종목 없음</p>'
-    rows = "".join(
-        f"<tr><td>{_e(h.ticker)}</td><td>{_e(h.account_key)}</td><td>{h.quantity:g}</td><td>{h.avg_price:g} {_e(h.currency)}</td><td>{h.current_price:g} {_e(h.currency)}</td><td>{_e(h.sector_tag)}</td></tr>"
-        for h in holdings
-    )
-    return f"<table><thead><tr><th>종목</th><th>계좌</th><th>수량</th><th>평단</th><th>현재가</th><th>태그</th></tr></thead><tbody>{rows}</tbody></table>"
-
-
 def _watchlist_table(items) -> str:
     if not items:
         return '<p class="empty">관심종목 없음</p>'
@@ -992,6 +1008,18 @@ def _float(form: dict[str, str], key: str) -> float:
 def _optional_float(form: dict[str, str], key: str) -> float | None:
     value = form.get(key, "").strip()
     return float(value) if value else None
+
+
+def _fetch_latest_price_for_holding(config: AppConfig, ticker: str):
+    if not ticker:
+        return None
+    store = PriceHistoryStore(config.db_path)
+    today = datetime.now(tz=KST).date()
+    try:
+        store.fetch_yfinance_into_cache(ticker, today - timedelta(days=14), today)
+    except Exception:
+        pass
+    return store.latest_bar(ticker)
 
 
 def _tracked_tickers(config: AppConfig) -> list[str]:

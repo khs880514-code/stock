@@ -124,6 +124,12 @@ Pre-operation UI cleanup on 2026-05-06 also made these daily-flow choices:
 - `5 내 계좌` is for cash, holdings, and watchlist management only.
 - `6 기록/복기` contains both trade-journal entry and recent trade-journal review.
 
+Later on 2026-05-06, ticker input usability was improved:
+
+- Most ticker fields accept Korean aliases through `app/web/ticker_search.py`, then convert to ticker symbols before submit.
+- `5 내 계좌` now shows holdings edit/delete guidance, share count, KRW valuation, and a per-row delete button.
+- Saving a holding with blank current price attempts to refresh/cache provider price data and uses the latest cached close; this is delayed/provider data, not broker-synced real-time quote data.
+
 ### Data Connections
 
 Currently wired:

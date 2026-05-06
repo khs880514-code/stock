@@ -1264,3 +1264,64 @@
 
 - Ran the desktop launcher through `cmd /c`.
 - HTTP check passed for `http://127.0.0.1:8770/` with status 200 and confirmed the page contains `주식 판단 친구` and `1 오늘 순서`.
+
+## 2026-05-06 Korean Ticker Search and Holding Usability
+
+### Background
+
+- User said ticker-code entry is too hard for a beginner and asked to type Korean names such as Samsung directly.
+- User also said holding entry was uncomfortable because current price did not update automatically, share count was not obvious, and mistaken holdings could not be deleted or clearly edited.
+
+### Cause
+
+- Forms required exact ticker symbols such as `005930.KS`.
+- Holding save used the manually entered current price, or fell back to average price, unless the user separately pressed price update.
+- The holdings table showed quantity and price, but did not emphasize share count, KRW valuation, edit behavior, or delete actions.
+
+### Change
+
+- Added `app/web/ticker_search.py` with a shared Korean-name ticker datalist and submit-time conversion script.
+- Applied Korean-name ticker input support to:
+  - holdings,
+  - watchlist,
+  - sensitivity,
+  - blackout,
+  - conditional decisions,
+  - earnings,
+  - research notes,
+  - trade journal,
+  - buy-check,
+  - DART fundamentals,
+  - market fundamentals,
+  - manual fundamentals.
+- Added common aliases such as `삼성전자`, `삼전`, `하이닉스`, `펄어비스`, `애플`, `엔비디아`, `구글`, `마이크로소프트`, `QQQ`, and `SMH`.
+- Added `app/web/portfolio_panel.py` and moved holdings table rendering out of `web_ui.py`.
+- When saving a holding with an empty current-price field, the app now tries to refresh/cache recent yfinance/Yahoo price data and uses the latest cached close.
+- The holdings table now shows:
+  - `보유수량` as shares,
+  - KRW valuation,
+  - USD-to-KRW helper text,
+  - edit guidance,
+  - per-row delete button.
+- Added `/delete-holding` route for mistaken holdings.
+- Added the holdings edit/delete table to `5 내 계좌`, not only the buy-check tab.
+
+### 사전에 없는 임의 결정
+
+- Kept stored tickers as canonical ticker symbols and used Korean names only as input aliases, because data collectors and rules already depend on ticker symbols.
+- Used a local curated alias list instead of a live search API to avoid adding unstable external dependencies before the one-week operation period.
+- Current-price refresh uses latest cached/delayed provider data, not guaranteed real-time broker quotes.
+
+### Operating Rule
+
+- Users may type Korean names in ticker fields, but the app stores ticker symbols internally.
+- If a holding is wrong, delete it from `5 내 계좌` or save the same ticker again to overwrite its fields.
+- Current prices are convenience estimates from market data providers; final broker values still need manual confirmation for real decisions.
+
+### Verification
+
+- Focused tests passed: `py -3 -m pytest tests\test_web_ui.py tests\test_file_size_guard.py tests\test_fundamentals_screener.py -q -p no:cacheprovider` passed 7 tests.
+- Compile check passed: `py -3 -m compileall -q app tests`.
+- Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 92 tests.
+- File-size check: `app/web_ui.py` 1090 lines, `app/web/ticker_search.py` 224 lines, `app/web/portfolio_panel.py` 46 lines.
+- Restarted the local UI at `http://127.0.0.1:8770`; in-app browser checks confirmed Korean ticker-search help, Samsung alias options, holdings edit/delete title, share quantity, valuation, delete button, and edit guidance in `5 내 계좌`.

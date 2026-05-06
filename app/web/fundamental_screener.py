@@ -13,6 +13,7 @@ from app.data.news_store import NewsStore
 from app.data.opendart_fundamentals import update_from_opendart
 from app.data.research_notes_store import ResearchNotesStore
 from app.engines.stock_screener import ScreenerCandidate, screen
+from app.web.ticker_search import ticker_input
 
 
 KST = ZoneInfo("Asia/Seoul")
@@ -143,20 +144,20 @@ def _fundamental_form() -> str:
   <p class="form-note">삼성전자, SK하이닉스, 펄어비스, QQQ, SMH, AAPL, AMD와 테스트용 우량주 후보를 비어 있을 때만 추가합니다.</p>
 </form>
 <form method="post" action="/dart-fundamental">
-  <label>DART 종목코드<input name="ticker" value="005930.KS" required></label>
+  {ticker_input("DART 종목", "005930.KS")}
   <div class="row"><label>사업연도<input name="bsns_year" type="number" value="{dart_year}" min="2015" max="{current_year}"></label><label>보고서<select name="reprt_code"><option value="11011">사업보고서</option><option value="11013">1분기</option><option value="11012">반기</option><option value="11014">3분기</option></select></label></div>
   <label>분류 태그<input name="sector_tag" value="AI_SEMICONDUCTOR"></label>
   <button>DART 재무정보 가져오기</button>
   <p class="form-note">매출, 이익, 부채 같은 회사 보고서 기반 지표를 채웁니다. PER/PBR은 시장가격 정보가 따로 필요합니다.</p>
 </form>
 <form method="post" action="/market-fundamental">
-  <label>시장정보 종목코드<input name="ticker" value="005930.KS" required></label>
+  {ticker_input("시장정보 종목", "005930.KS")}
   <label>분류 태그<input name="sector_tag" value="AI_SEMICONDUCTOR"></label>
   <button>PER/PBR/가격흐름 가져오기</button>
   <p class="form-note">가능한 경우 yfinance/Yahoo 데이터를 사용합니다. 수동 입력값은 덮지 않고 빈칸과 테스트값 위주로 보완합니다.</p>
 </form>
 <form method="post" action="/fundamental">
-  <label>종목<input name="ticker" value="005930.KS" required></label>
+  {ticker_input("종목", "005930.KS")}
   <div class="row"><label>시장<select name="market"><option>KR</option><option>US</option></select></label><label>통화<select name="currency"><option>KRW</option><option>USD</option></select></label></div>
   <div class="row"><label>회사명<input name="company_name" value="삼성전자"></label><label>섹터 태그<input name="sector_tag" value="AI_SEMICONDUCTOR"></label></div>
   <div class="row"><label>기준일<input name="as_of_date" type="date"></label><label>출처<input name="source" value="manual"></label></div>

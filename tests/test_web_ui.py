@@ -1,7 +1,10 @@
+from datetime import date
+
 from app.config import AppConfig
+from app.data.price_history import PriceHistoryStore
 from app.data.portfolio_store import PortfolioStore
-from app.models import Holding
-from app.web_ui import render_dashboard
+from app.models import Holding, PriceHistoryBar
+from app.web_ui import handle_post, render_dashboard
 
 
 def test_web_dashboard_renders_portfolio(tmp_path):
@@ -29,6 +32,14 @@ def test_web_dashboard_renders_portfolio(tmp_path):
     assert 'data-tab-target="journal"' in html
     assert "오늘은 이 순서로 보세요" in html
     assert "AAPL" in html
+    assert "한글명으로 검색 가능" in html
+    assert "삼성전자" in html
+    assert "보유수량" in html
+    assert "평가금액" in html
+    assert "현재 보유종목 수정/삭제" in html
+    assert "수정은 같은 종목을 다시 저장하면 덮어씁니다" in html
+    assert 'action="/delete-holding"' in html
+    assert "약 243,000원" in html
     assert "매수 전 체크" in html
     assert "고급 보호장치 펼치기" in html
     assert "점수 입력 기준" in html
@@ -57,3 +68,48 @@ def test_web_dashboard_renders_portfolio(tmp_path):
     assert html.index("매수 전 체크") < html.index("현재 보유 상태")
     assert html.index("현재 보유 상태") < html.index("고급 보호장치 펼치기")
     assert html.index('data-tab-panel="journal"') < html.index("매매 일지 입력")
+
+
+def test_holding_save_uses_latest_cached_price_when_current_price_blank(tmp_path, monkeypatch):
+    config = AppConfig(db_path=tmp_path / "ui-price.sqlite3")
+    PriceHistoryStore(config.db_path).upsert_many(
+        [
+            PriceHistoryBar(
+                ticker="AAPL",
+                date=date(2026, 5, 5),
+                open=280,
+                high=286,
+                low=279,
+                close=284.18,
+                volume=1000,
+                source="test",
+            )
+        ]
+    )
+    monkeypatch.setattr(PriceHistoryStore, "fetch_yfinance_into_cache", lambda self, ticker, start, end: [])
+
+    notice, _ = handle_post(
+        "/holding",
+        config,
+        {
+            "ticker": "AAPL",
+            "account_key": "GENERAL_TOSS",
+            "market": "US",
+            "quantity": "11",
+            "avg_price": "147.31",
+            "current_price": "",
+            "currency": "USD",
+            "asset_type": "EQUITY",
+            "sector_tag": "BIG_TECH",
+        },
+    )
+
+    holding = PortfolioStore(config.db_path, config).load_holdings()[0]
+    assert holding.quantity == 11
+    assert holding.current_price == 284.18
+    assert "11주" in notice
+    assert "최신 저장가 반영" in notice
+
+    notice, _ = handle_post("/delete-holding", config, {"ticker": "AAPL"})
+    assert "보유종목 삭제 완료" in notice
+    assert PortfolioStore(config.db_path, config).load_holdings() == []
