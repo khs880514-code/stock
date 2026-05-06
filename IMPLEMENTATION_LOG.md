@@ -1243,3 +1243,24 @@
 - Full regression passed: `py -3 -m pytest -q -p no:cacheprovider` passed 91 tests.
 - File-size check: `app/web_ui.py` 1062 lines, under the 1100-line guard.
 - Restarted the local UI at `http://127.0.0.1:8770`; in-app browser checks confirmed the buy-check tab shows `매수 전 체크`, `현재 보유 상태`, and `고급 보호장치`, and the journal tab shows both `매매 일지 입력` and `최근 매매 일지`.
+
+## 2026-05-06 Desktop Launcher
+
+### Background
+
+- User asked for a desktop executable so they do not have to ask Codex to open the local app each time.
+
+### Change
+
+- Created `C:\Users\kim\OneDrive\Desktop\주식판단친구 실행.cmd`.
+- The launcher checks `F:\codex\stock_expert_friend`, starts `py -3 -B -m app.main --web --port 8770` if the local app is not already responding, then opens `http://127.0.0.1:8770/`.
+
+### Operating Rule
+
+- For daily local use, double-click the desktop launcher instead of manually running the web command.
+- If the project folder moves, update the `APP_DIR` value inside the launcher.
+
+### Verification
+
+- Ran the desktop launcher through `cmd /c`.
+- HTTP check passed for `http://127.0.0.1:8770/` with status 200 and confirmed the page contains `주식 판단 친구` and `1 오늘 순서`.
